@@ -287,8 +287,8 @@ __global__ void argon2_kernel_segment(
             pseudo_rand_lo = local_addr.lo[addr_index];
             pseudo_rand_hi = local_addr.hi[addr_index];
         } else {
-                pseudo_rand_lo = prev->lo[0];
-                pseudo_rand_hi = prev->hi[0];
+            pseudo_rand_lo = prev->lo[0];
+            pseudo_rand_hi = prev->hi[0];
         }
 
         uint32_t ref_lane = pseudo_rand_hi % lanes;
@@ -309,8 +309,8 @@ __global__ void argon2_kernel_segment(
         }
 
         uint32_t ref_index = pseudo_rand_lo;
-        ref_index = __mulhi(ref_index, ref_index);
-        ref_index = ref_area_size - 1 - __mulhi(ref_area_size, ref_index);
+        ref_index = __umulhi(ref_index, ref_index);
+        ref_index = ref_area_size - 1 - __umulhi(ref_area_size, ref_index);
 
         if (pass != 0 && slice != ARGON2_SYNC_POINTS - 1) {
             ref_index += (slice + 1) * segment_blocks;
