@@ -194,7 +194,7 @@ __device__ void next_addresses(uint32_t thread,
 
 template<uint32_t type, uint32_t version>
 __global__ void argon2_kernel_segment(
-        uint64_t *memory, uint32_t passes, uint32_t lanes,
+        struct block_g *memory, uint32_t passes, uint32_t lanes,
         uint32_t segment_blocks, uint32_t pass, uint32_t slice)
 {
     uint32_t job_id = blockIdx.x;
@@ -244,8 +244,8 @@ __global__ void argon2_kernel_segment(
         }
     }
 
-    struct block_g *mem_segment = (struct block_g *)(
-                memory + lane * lane_blocks + slice * segment_blocks);
+    struct block_g *mem_segment =
+            memory + lane * lane_blocks + slice * segment_blocks;
     struct block_g *mem_prev, *mem_curr;
     uint32_t start_offset = 0;
     if (pass == 0) {
@@ -359,29 +359,30 @@ __global__ void argon2_kernel_segment(
 
 void argon2_run_kernel_segment(
         uint32_t type, uint32_t version, uint32_t batchSize,
-        cudaStream_t stream, uint64_t *memory, uint32_t passes, uint32_t lanes,
+        cudaStream_t stream, void *memory, uint32_t passes, uint32_t lanes,
         uint32_t segment_blocks, uint32_t pass, uint32_t slice)
 {
+    struct block_g *memory_blocks = (struct block_g *)memory;
     dim3 blocks = dim3(batchSize, lanes);
     dim3 threads = dim3(1, 1, THREADS_PER_LANE);
     if (type == ARGON2_I) {
         if (version == ARGON2_VERSION_10) {
             argon2_kernel_segment<ARGON2_I, ARGON2_VERSION_10>
-                    <<<blocks, threads, 0, stream>>>(memory, passes, lanes,
+                    <<<blocks, threads, 0, stream>>>(memory_blocks, passes, lanes,
                                                      segment_blocks, pass, slice);
         } else {
             argon2_kernel_segment<ARGON2_I, ARGON2_VERSION_13>
-                    <<<blocks, threads, 0, stream>>>(memory, passes, lanes,
+                    <<<blocks, threads, 0, stream>>>(memory_blocks, passes, lanes,
                                                      segment_blocks, pass, slice);
         }
     } else {
         if (version == ARGON2_VERSION_10) {
             argon2_kernel_segment<ARGON2_D, ARGON2_VERSION_10>
-                    <<<blocks, threads, 0, stream>>>(memory, passes, lanes,
+                    <<<blocks, threads, 0, stream>>>(memory_blocks, passes, lanes,
                                                      segment_blocks, pass, slice);
         } else {
             argon2_kernel_segment<ARGON2_D, ARGON2_VERSION_13>
-                    <<<blocks, threads, 0, stream>>>(memory, passes, lanes,
+                    <<<blocks, threads, 0, stream>>>(memory_blocks, passes, lanes,
                                                      segment_blocks, pass, slice);
         }
     }
