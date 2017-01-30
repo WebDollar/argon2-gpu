@@ -19,9 +19,11 @@ ProcessingUnit::ProcessingUnit(
 
     memorySize = params->getMemorySize() * batchSize;
 
-    CudaException::check(cudaMallocManaged(&memoryBuffer, memorySize));
+    CudaException::check(cudaMallocManaged(&memoryBuffer, memorySize,
+                                           cudaMemAttachHost));
 
     CudaException::check(cudaStreamAttachMemAsync(stream, memoryBuffer));
+    CudaException::check(cudaStreamSynchronize(stream));
 
     /*
     if (bySegment) {
