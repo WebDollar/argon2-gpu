@@ -324,21 +324,17 @@ __global__ void argon2_kernel_segment(
          * it starts & ends in 'nicely parallel' memory operations
          * like we do in this loop (IOW: this thread only depends on
          * its own data w.r.t. these boundaries) */
-        if (version == ARGON2_VERSION_10) {
+        if (version == ARGON2_VERSION_10 || pass == 0) {
             fill_block(thread, mem_ref, prev, curr);
         } else {
-            if (pass != 0) {
-                for (uint32_t i = 0; i < QWORDS_PER_THREAD; i++) {
-                    uint32_t pos_l = (thread & 0x10) + ((thread + i * 4) & 0xf);
-                    uint64_t in = mem_curr->data[i * THREADS_PER_LANE + thread];
-                    curr->lo[i * THREADS_PER_LANE + pos_l] = (uint32_t)in;
-                    curr->hi[i * THREADS_PER_LANE + pos_l] = (uint32_t)(in >> 32);
-                }
-
-                fill_block_xor(thread, mem_ref, prev, curr);
-            } else {
-                fill_block(thread, mem_ref, prev, curr);
+            for (uint32_t i = 0; i < QWORDS_PER_THREAD; i++) {
+                uint32_t pos_l = (thread & 0x10) + ((thread + i * 4) & 0xf);
+                uint64_t in = mem_curr->data[i * THREADS_PER_LANE + thread];
+                curr->lo[i * THREADS_PER_LANE + pos_l] = (uint32_t)in;
+                curr->hi[i * THREADS_PER_LANE + pos_l] = (uint32_t)(in >> 32);
             }
+
+            fill_block_xor(thread, mem_ref, prev, curr);
         }
 
         for (uint32_t i = 0; i < QWORDS_PER_THREAD; i++) {
@@ -354,6 +350,182 @@ __global__ void argon2_kernel_segment(
         prev = tmp;
 
         ++mem_curr;
+    }
+}
+
+template<uint32_t type, uint32_t version>
+__global__ void argon2_kernel_oneshot(
+        struct block_g *memory, uint32_t passes, uint32_t lanes,
+        uint32_t segment_blocks)
+{
+    extern __shared__ struct block_l shared_mem[];
+    struct block_l *shared = shared_mem;
+
+    uint32_t job_id = blockIdx.x;
+    uint32_t lane   = threadIdx.y;
+    uint32_t thread = threadIdx.z;
+
+    uint32_t lane_blocks = ARGON2_SYNC_POINTS * segment_blocks;
+
+    /* select job's memory region: */
+    memory += job_id * lanes * lane_blocks;
+    /* select lane's shared memory buffer: */
+    shared += lane * (type == ARGON2_I ? 3 : 2);
+
+    struct block_l *curr = &shared[0];
+    struct block_l *prev = &shared[1];
+    struct block_l *addr;
+    uint32_t thread_input;
+
+    if (type == ARGON2_I) {
+        addr = &shared[2];
+
+        switch (thread) {
+        case 1:
+            thread_input = lane;
+            break;
+        case 3:
+            thread_input = lanes * lane_blocks;
+            break;
+        case 4:
+            thread_input = passes;
+            break;
+        case 5:
+            thread_input = ARGON2_I;
+            break;
+        default:
+            thread_input = 0;
+            break;
+        }
+
+        if (segment_blocks > 2) {
+            if (thread == 6) {
+                ++thread_input;
+            }
+            next_addresses(thread, addr, curr, thread_input);
+        }
+    }
+
+    struct block_g *mem_lane = memory + lane * lane_blocks;
+    struct block_g *mem_prev = mem_lane + 1;
+    struct block_g *mem_curr = mem_lane + 2;
+
+    for (uint32_t i = 0; i < QWORDS_PER_THREAD; i++) {
+        uint32_t pos_l = (thread & 0x10) + ((thread + i * 4) & 0xf);
+        uint64_t in = mem_prev->data[i * THREADS_PER_LANE + thread];
+        prev->lo[i * THREADS_PER_LANE + pos_l] = (uint)in;
+        prev->hi[i * THREADS_PER_LANE + pos_l] = (uint)(in >> 32);
+    }
+    uint32_t skip = 2;
+    for (uint32_t pass = 0; pass < passes; ++pass) {
+        for (uint32_t slice = 0; slice < ARGON2_SYNC_POINTS; ++slice) {
+            for (uint32_t offset = 0; offset < segment_blocks; ++offset) {
+                if (skip > 0) {
+                    --skip;
+                    continue;
+                }
+
+                uint32_t pseudo_rand_lo, pseudo_rand_hi;
+                if (type == ARGON2_I) {
+                    uint32_t addr_index = offset % ARGON2_QWORDS_IN_BLOCK;
+                    if (addr_index == 0) {
+                        if (thread == 6) {
+                            ++thread_input;
+                        }
+                        next_addresses(thread, addr, curr, thread_input);
+                    }
+                    uint32_t addr_index_x = addr_index % 16;
+                    uint32_t addr_index_y = addr_index / 16;
+                    addr_index = addr_index_y * 16 +
+                            (addr_index_x + (addr_index_y / 2) * 4) % 16;
+                    pseudo_rand_lo = addr->lo[addr_index];
+                    pseudo_rand_hi = addr->hi[addr_index];
+                } else {
+                    pseudo_rand_lo = prev->lo[0];
+                    pseudo_rand_hi = prev->hi[0];
+                }
+
+                uint32_t ref_lane = pseudo_rand_hi % lanes;
+
+                uint32_t base;
+                if (pass != 0) {
+                    base = lane_blocks - segment_blocks;
+                } else {
+                    if (slice == 0) {
+                        ref_lane = lane;
+                    }
+                    base = slice * segment_blocks;
+                }
+
+                uint32_t ref_area_size = base + offset - 1;
+                if (ref_lane != lane) {
+                    ref_area_size = min(ref_area_size, base);
+                }
+
+                uint32_t ref_index = pseudo_rand_lo;
+                ref_index = __umulhi(ref_index, ref_index);
+                ref_index = ref_area_size - 1 - __umulhi(ref_area_size, ref_index);
+
+                if (pass != 0 && slice != ARGON2_SYNC_POINTS - 1) {
+                    ref_index += (slice + 1) * segment_blocks;
+                    ref_index %= lane_blocks;
+                }
+
+                struct block_g *mem_ref = memory +
+                        ref_lane * lane_blocks + ref_index;
+
+                /* NOTE: no need to wrap fill_block in barriers, since
+                 * it starts & ends in 'nicely parallel' memory operations
+                 * like we do in this loop (IOW: this thread only depends on
+                 * its own data w.r.t. these boundaries) */
+                if (version == ARGON2_VERSION_10 || pass == 0) {
+                    fill_block(thread, mem_ref, prev, curr);
+                } else {
+                    for (uint32_t i = 0; i < QWORDS_PER_THREAD; i++) {
+                        uint32_t pos_l = (thread & 0x10) + ((thread + i * 4) & 0xf);
+                        uint64_t in = mem_curr->data[i * THREADS_PER_LANE + thread];
+                        curr->lo[i * THREADS_PER_LANE + pos_l] = (uint)in;
+                        curr->hi[i * THREADS_PER_LANE + pos_l] = (uint)(in >> 32);
+                    }
+
+                    fill_block_xor(thread, mem_ref, prev, curr);
+                }
+
+                for (uint32_t i = 0; i < QWORDS_PER_THREAD; i++) {
+                    uint32_t pos_l = (thread & 0x10) + ((thread + i * 4) & 0xf);
+                    uint64_t out = upsample(curr->hi[i * THREADS_PER_LANE + pos_l],
+                                         curr->lo[i * THREADS_PER_LANE + pos_l]);
+                    mem_curr->data[i * THREADS_PER_LANE + thread] = out;
+                }
+
+                /* swap curr and prev buffers: */
+                struct block_l *tmp = curr;
+                curr = prev;
+                prev = tmp;
+
+                ++mem_curr;
+            }
+
+            __syncthreads();
+
+            if (type == ARGON2_I) {
+                if (thread == 2) {
+                    ++thread_input;
+                }
+                if (thread == 6) {
+                    thread_input = 0;
+                }
+            }
+        }
+        if (type == ARGON2_I) {
+            if (thread == 0) {
+                ++thread_input;
+            }
+            if (thread == 2) {
+                thread_input = 0;
+            }
+        }
+        mem_curr = mem_lane;
     }
 }
 
@@ -384,6 +556,39 @@ void argon2_run_kernel_segment(
             argon2_kernel_segment<ARGON2_D, ARGON2_VERSION_13>
                     <<<blocks, threads, 0, stream>>>(memory_blocks, passes, lanes,
                                                      segment_blocks, pass, slice);
+        }
+    }
+}
+
+void argon2_run_kernel_oneshot(
+        uint32_t type, uint32_t version, uint32_t batchSize,
+        cudaStream_t stream, void *memory, uint32_t passes, uint32_t lanes,
+        uint32_t segment_blocks)
+{
+    struct block_g *memory_blocks = (struct block_g *)memory;
+    dim3 blocks = dim3(batchSize);
+    dim3 threads = dim3(1, lanes, THREADS_PER_LANE);
+    if (type == ARGON2_I) {
+        uint32_t shared_size = lanes * ARGON2_BLOCK_SIZE * 3;
+        if (version == ARGON2_VERSION_10) {
+            argon2_kernel_oneshot<ARGON2_I, ARGON2_VERSION_10>
+                    <<<blocks, threads, shared_size, stream>>>(
+                        memory_blocks, passes, lanes, segment_blocks);
+        } else {
+            argon2_kernel_oneshot<ARGON2_I, ARGON2_VERSION_13>
+                    <<<blocks, threads, shared_size, stream>>>(
+                        memory_blocks, passes, lanes, segment_blocks);
+        }
+    } else {
+        uint32_t shared_size = lanes * ARGON2_BLOCK_SIZE * 2;
+        if (version == ARGON2_VERSION_10) {
+            argon2_kernel_oneshot<ARGON2_D, ARGON2_VERSION_10>
+                    <<<blocks, threads, shared_size, stream>>>(
+                        memory_blocks, passes, lanes, segment_blocks);
+        } else {
+            argon2_kernel_oneshot<ARGON2_D, ARGON2_VERSION_13>
+                    <<<blocks, threads, shared_size, stream>>>(
+                        memory_blocks, passes, lanes, segment_blocks);
         }
     }
 }

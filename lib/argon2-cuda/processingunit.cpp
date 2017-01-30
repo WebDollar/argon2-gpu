@@ -24,32 +24,6 @@ ProcessingUnit::ProcessingUnit(
 
     CudaException::check(cudaStreamAttachMemAsync(stream, memoryBuffer));
     CudaException::check(cudaStreamSynchronize(stream));
-
-    /*
-    if (bySegment) {
-        kernel = cl::Kernel(programContext->getProgram(),
-                            "argon2_kernel_segment");
-        kernel.setArg<cl::Buffer>(0, memoryBuffer);
-        kernel.setArg<cl_uint>(1, params->getTimeCost());
-        kernel.setArg<cl_uint>(2, lanes);
-        kernel.setArg<cl_uint>(3, params->getSegmentBlocks());
-    } else {
-        auto localMemSize = (std::size_t)lanes * ARGON2_BLOCK_SIZE;
-        if (programContext->getArgon2Type() == ARGON2_I) {
-            localMemSize *= 3;
-        } else {
-            localMemSize *= 2;
-        }
-
-        kernel = cl::Kernel(programContext->getProgram(),
-                            "argon2_kernel_oneshot");
-        kernel.setArg<cl::Buffer>(0, memoryBuffer);
-        kernel.setArg<cl::LocalSpaceArg>(1, { localMemSize });
-        kernel.setArg<cl_uint>(2, params->getTimeCost());
-        kernel.setArg<cl_uint>(3, lanes);
-        kernel.setArg<cl_uint>(4, params->getSegmentBlocks());
-    }
-    */
 }
 
 ProcessingUnit::~ProcessingUnit()
@@ -129,7 +103,13 @@ void ProcessingUnit::beginProcessing()
             }
         }
     } else {
-        // TODO
+        argon2_run_kernel_oneshot(
+                    programContext->getArgon2Type(),
+                    programContext->getArgon2Version(),
+                    batchSize, stream, (unsigned long *)memoryBuffer,
+                    params->getTimeCost(),
+                    params->getLanes(),
+                    params->getSegmentBlocks());
     }
 }
 
