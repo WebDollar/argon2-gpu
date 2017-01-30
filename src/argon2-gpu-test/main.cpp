@@ -342,7 +342,7 @@ void runAllTests(std::size_t &failures)
 int main(void) {
     std::size_t failures = 0;
 
-    std::cout << "Running CUDA tests..." << std::endl;
+    std::cerr << "Running CUDA tests..." << std::endl;
     try {
         runAllTests<cuda::Device, cuda::GlobalContext, cuda::ProgramContext,
                 cuda::ProcessingUnit>(failures);
@@ -351,7 +351,7 @@ int main(void) {
         return 2;
     }
 
-    std::cout << "Running OpenCL tests..." << std::endl;
+    std::cerr << "Running OpenCL tests..." << std::endl;
     try {
         runAllTests<opencl::Device, opencl::GlobalContext, opencl::ProgramContext,
                 opencl::ProcessingUnit>(failures);
