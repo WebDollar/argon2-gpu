@@ -9,6 +9,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(CUDA REQUIRED)
 
+set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};
+    -std=c++11 -O3 --ptxas-options=-v -arch sm_30 -lineinfo
+)
+
 add_library(argon2-gpu-common SHARED
     lib/argon2-gpu-common/argon2params.cpp
     lib/argon2-gpu-common/blake2b.cpp

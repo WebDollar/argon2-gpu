@@ -1,7 +1,5 @@
 #include "kernels.h"
 
-#include <cuda_runtime.h>
-
 #define ARGON2_D 0
 #define ARGON2_I 1
 
@@ -14,6 +12,11 @@
 
 #define THREADS_PER_LANE 32
 #define QWORDS_PER_THREAD (ARGON2_QWORDS_IN_BLOCK / 32)
+
+namespace argon2 {
+namespace cuda {
+
+using namespace std;
 
 __device__ uint64_t rotr64(uint64_t x, uint32_t n)
 {
@@ -592,3 +595,6 @@ void argon2_run_kernel_oneshot(
         }
     }
 }
+
+} // cuda
+} // argon2

@@ -2,16 +2,28 @@
 #define ARGON2_CUDA_KERNELS_H
 
 #include <cuda_runtime.h>
-#include <stdint.h>
+#include <cstdint>
+
+/* workaround weird CMake/CUDA bug: */
+#ifdef argon2
+#undef argon2
+#endif
+
+namespace argon2 {
+namespace cuda {
 
 void argon2_run_kernel_segment(
-        uint32_t type, uint32_t version, uint32_t batchSize,
-        cudaStream_t stream, void *memory, uint32_t passes, uint32_t lanes,
-        uint32_t segment_blocks, uint32_t pass, uint32_t slice);
+        std::uint32_t type, std::uint32_t version, std::uint32_t batchSize,
+        cudaStream_t stream, void *memory, std::uint32_t passes,
+        std::uint32_t lanes, std::uint32_t segment_blocks, std::uint32_t pass,
+        std::uint32_t slice);
 
 void argon2_run_kernel_oneshot(
-        uint32_t type, uint32_t version, uint32_t batchSize,
-        cudaStream_t stream, void *memory, uint32_t passes, uint32_t lanes,
-        uint32_t segment_blocks);
+        std::uint32_t type, std::uint32_t version, std::uint32_t batchSize,
+        cudaStream_t stream, void *memory, std::uint32_t passes,
+        std::uint32_t lanes, std::uint32_t segment_blocks);
+
+} // cuda
+} // argon2
 
 #endif // ARGON2_CUDA_KERNELS_H
