@@ -1,3 +1,8 @@
+/* For IDE: */
+#ifndef __CUDACC__
+#define __CUDACC__
+#endif
+
 #include "kernels.h"
 
 #define ARGON2_D 0
