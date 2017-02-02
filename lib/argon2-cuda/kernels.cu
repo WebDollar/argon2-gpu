@@ -246,7 +246,9 @@ __device__ void argon2_core(
 
     if (pass != 0 && slice != ARGON2_SYNC_POINTS - 1) {
         ref_index += (slice + 1) * segment_blocks;
-        ref_index %= lane_blocks;
+        if (ref_index >= lane_blocks) {
+            ref_index -= lane_blocks;
+        }
     }
 
     struct block_g *mem_ref = memory + ref_lane * lane_blocks + ref_index;
