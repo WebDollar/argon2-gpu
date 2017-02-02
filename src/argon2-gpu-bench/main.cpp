@@ -27,6 +27,7 @@ struct Arguments
     std::size_t m_cost = 1024;
     std::size_t lanes = 1;
     std::size_t batchSize = 16;
+    std::string kernelType = "by-segment";
     std::size_t sampleCount = 10;
 };
 
@@ -82,6 +83,9 @@ static CommandLineParser<Arguments> buildCmdLineParser()
             makeNumericHandler<Arguments, std::size_t>([] (Arguments &state, std::size_t num) {
                 state.sampleCount = (std::size_t)num;
             }), "samples", 's', "number of batches to run and measure", "10", "N"),
+        new ArgumentOption<Arguments>(
+            [] (Arguments &state, const std::string &type) { state.kernelType = type; },
+            "kernel-type", 'k', "Kernel type (by-segment|oneshot)", "by-segment", "TYPE"),
 
         new FlagOption<Arguments>(
             [] (Arguments &state) { state.showHelp = true; },
@@ -113,7 +117,7 @@ int main(int, const char * const *argv)
     } else if (args.type == "d") {
         type = argon2::ARGON2_D;
     } else {
-        // TODO
+        std::cerr << argv[0] << ": Invalid Argon2 type!" << std::endl;
         return 1;
     }
 
@@ -123,13 +127,23 @@ int main(int, const char * const *argv)
     } else if (args.version == "1.3") {
         version = argon2::ARGON2_VERSION_13;
     } else {
-        // TODO
+        std::cerr << argv[0] << ": Invalid Argon2 version!" << std::endl;
+        return 1;
+    }
+
+    bool bySegment;
+    if (args.kernelType == "by-segment") {
+        bySegment = true;
+    } else if (args.kernelType == "oneshot") {
+        bySegment = false;
+    } else {
+        std::cerr << argv[0] << ": Invalid kernel type!" << std::endl;
         return 1;
     }
 
     BenchmarkDirector director(argv[0], type, version,
             args.t_cost, args.m_cost, args.lanes,
-            args.batchSize, args.sampleCount,
+            args.batchSize, bySegment, args.sampleCount,
             args.outputMode, args.outputType);
     if (args.mode == "opencl") {
         OpenCLExecutive exec(args.deviceIndex, args.listDevices);
@@ -138,7 +152,7 @@ int main(int, const char * const *argv)
         CudaExecutive exec(args.deviceIndex, args.listDevices);
         return exec.runBenchmark(director);
     } else if (args.mode == "cpu") {
-        // TODO
+        std::cerr << argv[0] << ": CPU mode not yet supported!" << std::endl;
         return 1;
     } else {
         std::cerr << argv[0] << ": invalid mode: " << args.mode << std::endl;

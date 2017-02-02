@@ -23,6 +23,7 @@ private:
     argon2::Version version;
     std::size_t t_cost, m_cost, lanes;
     std::size_t batchSize, samples;
+    bool bySegment;
     std::string outputMode, outputType;
     bool beVerbose;
 
@@ -34,17 +35,19 @@ public:
     std::size_t getMemoryCost() const { return m_cost; }
     std::size_t getLanes() const { return lanes; }
     std::size_t getBatchSize() const { return batchSize; }
+    bool isBySegment() const { return bySegment; }
     bool isVerbose() const { return beVerbose; }
 
     BenchmarkDirector(const std::string &progname,
                       argon2::Type type, argon2::Version version,
                       std::size_t t_cost, std::size_t m_cost, std::size_t lanes,
-                      std::size_t batchSize, std::size_t samples,
+                      std::size_t batchSize, bool bySegment,
+                      std::size_t samples,
                       const std::string &outputMode,
                       const std::string &outputType)
         : progname(progname), type(type), version(version),
           t_cost(t_cost), m_cost(m_cost), lanes(lanes),
-          batchSize(batchSize), samples(samples),
+          batchSize(batchSize), samples(samples), bySegment(bySegment),
           outputMode(outputMode), outputType(outputType),
           beVerbose(outputMode == "verbose")
     {

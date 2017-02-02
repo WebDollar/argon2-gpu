@@ -19,7 +19,8 @@ public:
         : params(HASH_LENGTH, NULL, 0, NULL, 0, NULL, 0,
                  director.getTimeCost(), director.getMemoryCost(),
                  director.getLanes()),
-          unit(&pc, &params, &device, director.getBatchSize())
+          unit(&pc, &params, &device, director.getBatchSize(),
+               director.isBySegment())
     {
     }
 
