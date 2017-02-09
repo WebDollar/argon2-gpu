@@ -1,6 +1,7 @@
 #include "argon2-gpu-common/argon2params.h"
 
 #include <iostream>
+#include <array>
 #include <cstdint>
 #include <cstring>
 
@@ -79,29 +80,40 @@ std::size_t runTests(const GlobalContext &global, const Device &device,
     std::size_t failures = 0;
     ProgramContext progCtx(&global, { device }, type, version);
     for (auto bySegment : {true, false}) {
-        for (auto tc = casesFrom; tc < casesTo; ++tc) {
-            std::cout << "  " << (bySegment ? "[by-segment] " : "[oneshot] ");
-            tc->dump(std::cout);
-            std::cout << "... ";
+        const std::array<bool, 2> precomputeOpts = { false, true };
+        auto precBegin = precomputeOpts.begin();
+        auto precEnd = precomputeOpts.end();
+        if (type != ARGON2_I) {
+            precEnd--;
+        }
+        for (auto precIt = precBegin; precIt != precEnd; precIt++) {
+            for (auto tc = casesFrom; tc < casesTo; ++tc) {
+                bool precompute = *precIt;
+                std::cout << "  "
+                          << (bySegment  ? "[by-segment] " : "[oneshot]    ")
+                          << (precompute ? "[precompute] " : "[in-place]   ");
+                tc->dump(std::cout);
+                std::cout << "... ";
 
-            auto &params = tc->getParams();
-            ProcessingUnit pu(&progCtx, &params, &device, 1, bySegment);
+                auto &params = tc->getParams();
+                ProcessingUnit pu(&progCtx, &params, &device, 1, bySegment,
+                                  precompute);
+                {
+                    typename ProcessingUnit::PasswordWriter writer(pu);
+                    writer.setPassword(tc->getInput(), tc->getInputLength());
+                }
+                pu.beginProcessing();
+                pu.endProcessing();
 
-            {
-                typename ProcessingUnit::PasswordWriter writer(pu);
-                writer.setPassword(tc->getInput(), tc->getInputLength());
-            }
-            pu.beginProcessing();
-            pu.endProcessing();
-
-            typename ProcessingUnit::HashReader hash(pu);
-            bool res = std::memcmp(tc->getOutput(), hash.getHash(),
-                                   params.getOutputLength()) == 0;
-            if (!res) {
-                ++failures;
-                std::cout << "FAIL" << std::endl;
-            } else {
-                std::cout << "PASS" << std::endl;
+                typename ProcessingUnit::HashReader hash(pu);
+                bool res = std::memcmp(tc->getOutput(), hash.getHash(),
+                                       params.getOutputLength()) == 0;
+                if (!res) {
+                    ++failures;
+                    std::cout << "FAIL" << std::endl;
+                } else {
+                    std::cout << "PASS" << std::endl;
+                }
             }
         }
     }

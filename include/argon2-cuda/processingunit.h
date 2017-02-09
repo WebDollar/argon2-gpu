@@ -59,7 +59,7 @@ public:
     ProcessingUnit(
             const ProgramContext *programContext, const Argon2Params *params,
             const Device *device, std::size_t batchSize,
-            bool bySegment = true);
+            bool bySegment = true, bool precomputeRefs = false);
 
     void beginProcessing();
     void endProcessing();

@@ -20,7 +20,7 @@ public:
                  director.getTimeCost(), director.getMemoryCost(),
                  director.getLanes()),
           unit(&pc, &params, &device, director.getBatchSize(),
-               director.isBySegment())
+               director.isBySegment(), director.isPrecomputeRefs())
     {
     }
 
