@@ -226,9 +226,9 @@ __kernel void argon2_kernel_segment(
         __global struct block_g *memory, uint passes, uint lanes,
         uint segment_blocks, uint pass, uint slice)
 {
-    size_t job_id = get_global_id(0);
-    uint lane = get_global_id(1);
-    uint thread = (uint)get_global_id(2);
+    size_t job_id = get_global_id(2);
+    uint lane = (uint)get_global_id(1);
+    uint thread = (uint)get_global_id(0);
 
     uint lane_blocks = ARGON2_SYNC_POINTS * segment_blocks;
 
@@ -397,9 +397,9 @@ __kernel void argon2_kernel_oneshot(
         __global struct block_g *memory, __local struct block_l *shared,
         uint passes, uint lanes, uint segment_blocks)
 {
-    size_t job_id = get_global_id(0);
-    uint lane = get_global_id(1);
-    uint thread = (uint)get_global_id(2);
+    size_t job_id = get_global_id(2);
+    uint lane = (uint)get_global_id(1);
+    uint thread = (uint)get_global_id(0);
 
     uint lane_blocks = ARGON2_SYNC_POINTS * segment_blocks;
 

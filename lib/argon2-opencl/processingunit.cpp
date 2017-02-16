@@ -112,17 +112,17 @@ void ProcessingUnit::beginProcessing()
                 kernel.setArg<cl_uint>(5, slice);
                 cmdQueue.enqueueNDRangeKernel(
                             kernel, cl::NullRange,
-                            cl::NDRange(batchSize, params->getLanes(),
-                                        THREADS_PER_LANE),
-                            cl::NDRange(1, 1, THREADS_PER_LANE));
+                            cl::NDRange(THREADS_PER_LANE, params->getLanes(),
+                                        batchSize),
+                            cl::NDRange(THREADS_PER_LANE, 1, 1));
             }
         }
     } else {
         cmdQueue.enqueueNDRangeKernel(
                     kernel, cl::NullRange,
-                    cl::NDRange(batchSize, params->getLanes(),
-                                THREADS_PER_LANE),
-                    cl::NDRange(1, params->getLanes(), THREADS_PER_LANE));
+                    cl::NDRange(THREADS_PER_LANE, params->getLanes(),
+                                batchSize),
+                    cl::NDRange(THREADS_PER_LANE, params->getLanes(), 1));
     }
 
     mappedMemoryBuffer = cmdQueue.enqueueMapBuffer(
