@@ -288,9 +288,9 @@ __global__ void argon2_kernel_segment(
         struct block_g *memory, uint32_t passes, uint32_t lanes,
         uint32_t segment_blocks, uint32_t pass, uint32_t slice)
 {
-    uint32_t job_id = blockIdx.x;
+    uint32_t job_id = blockIdx.z;
     uint32_t lane   = blockIdx.y;
-    uint32_t thread = threadIdx.z;
+    uint32_t thread = threadIdx.x;
 
     uint32_t lane_blocks = ARGON2_SYNC_POINTS * segment_blocks;
 
@@ -384,9 +384,9 @@ __global__ void argon2_kernel_oneshot(
     extern __shared__ struct block_l shared_mem[];
     struct block_l *shared = shared_mem;
 
-    uint32_t job_id = blockIdx.x;
+    uint32_t job_id = blockIdx.z;
     uint32_t lane   = threadIdx.y;
-    uint32_t thread = threadIdx.z;
+    uint32_t thread = threadIdx.x;
 
     uint32_t lane_blocks = ARGON2_SYNC_POINTS * segment_blocks;
 
@@ -491,8 +491,8 @@ void argon2_run_kernel_segment(
         uint32_t segment_blocks, uint32_t pass, uint32_t slice)
 {
     struct block_g *memory_blocks = (struct block_g *)memory;
-    dim3 blocks = dim3(batchSize, lanes);
-    dim3 threads = dim3(1, 1, THREADS_PER_LANE);
+    dim3 blocks = dim3(1, lanes, batchSize);
+    dim3 threads = dim3(THREADS_PER_LANE);
     if (type == ARGON2_I) {
         if (version == ARGON2_VERSION_10) {
             argon2_kernel_segment<ARGON2_I, ARGON2_VERSION_10>
@@ -522,8 +522,8 @@ void argon2_run_kernel_oneshot(
         uint32_t segment_blocks)
 {
     struct block_g *memory_blocks = (struct block_g *)memory;
-    dim3 blocks = dim3(batchSize);
-    dim3 threads = dim3(1, lanes, THREADS_PER_LANE);
+    dim3 blocks = dim3(1, 1, batchSize);
+    dim3 threads = dim3(THREADS_PER_LANE, lanes);
     if (type == ARGON2_I) {
         uint32_t shared_size = lanes * ARGON2_BLOCK_SIZE * 3;
         if (version == ARGON2_VERSION_10) {
