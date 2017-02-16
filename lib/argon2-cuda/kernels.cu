@@ -436,8 +436,8 @@ __global__ void argon2_kernel_oneshot(
     for (uint32_t i = 0; i < QWORDS_PER_THREAD; i++) {
         uint32_t pos_l = (thread & 0x10) + ((thread + i * 4) & 0xf);
         uint64_t in = mem_prev->data[i * THREADS_PER_LANE + thread];
-        prev->lo[i * THREADS_PER_LANE + pos_l] = (uint)in;
-        prev->hi[i * THREADS_PER_LANE + pos_l] = (uint)(in >> 32);
+        prev->lo[i * THREADS_PER_LANE + pos_l] = (uint32_t)in;
+        prev->hi[i * THREADS_PER_LANE + pos_l] = (uint32_t)(in >> 32);
     }
     uint32_t skip = 2;
     for (uint32_t pass = 0; pass < passes; ++pass) {
