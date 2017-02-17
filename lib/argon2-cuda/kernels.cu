@@ -128,8 +128,8 @@ __device__ void fill_block(uint32_t thread, struct block_g *ref_block,
     for (uint32_t i = 0; i < QWORDS_PER_THREAD; i++) {
         uint32_t pos_l = i * THREADS_PER_LANE +
                 (thread & 0x10) + ((thread + i * 4) & 0xf);
-        next_block->lo[pos_l] ^= prev_block->lo[pos_l];
-        next_block->hi[pos_l] ^= prev_block->hi[pos_l];
+        prev_block->lo[pos_l] ^= next_block->lo[pos_l];
+        prev_block->hi[pos_l] ^= next_block->hi[pos_l];
     }
 }
 
@@ -154,8 +154,8 @@ __device__ void fill_block_xor(uint32_t thread, struct block_g *ref_block,
     for (uint32_t i = 0; i < QWORDS_PER_THREAD; i++) {
         uint32_t pos_l = i * THREADS_PER_LANE +
                 (thread & 0x10) + ((thread + i * 4) & 0xf);
-        next_block->lo[pos_l] ^= prev_block->lo[pos_l];
-        next_block->hi[pos_l] ^= prev_block->hi[pos_l];
+        prev_block->lo[pos_l] ^= next_block->lo[pos_l];
+        prev_block->hi[pos_l] ^= next_block->hi[pos_l];
     }
 }
 
@@ -277,8 +277,8 @@ __device__ void argon2_core(
 
     for (uint32_t i = 0; i < QWORDS_PER_THREAD; i++) {
         uint32_t pos_l = (thread & 0x10) + ((thread + i * 4) & 0xf);
-        uint64_t out = upsample(curr->hi[i * THREADS_PER_LANE + pos_l],
-                             curr->lo[i * THREADS_PER_LANE + pos_l]);
+        uint64_t out = upsample(prev->hi[i * THREADS_PER_LANE + pos_l],
+                                prev->lo[i * THREADS_PER_LANE + pos_l]);
         mem_curr->data[i * THREADS_PER_LANE + thread] = out;
     }
 }
@@ -367,11 +367,6 @@ __global__ void argon2_kernel_segment(
                     thread, &thread_input,
                     lane, pass, slice, offset);
 
-        /* swap curr and prev buffers: */
-        struct block_l *tmp = curr;
-        curr = prev;
-        prev = tmp;
-
         ++mem_curr;
     }
 }
@@ -453,11 +448,6 @@ __global__ void argon2_kernel_oneshot(
                             lanes, segment_blocks, lane_blocks,
                             thread, &thread_input,
                             lane, pass, slice, offset);
-
-                /* swap curr and prev buffers: */
-                struct block_l *tmp = curr;
-                curr = prev;
-                prev = tmp;
 
                 ++mem_curr;
             }
