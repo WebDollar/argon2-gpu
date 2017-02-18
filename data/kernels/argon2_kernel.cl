@@ -344,7 +344,9 @@ __kernel void argon2_kernel_segment(
 
         if (pass != 0 && slice != ARGON2_SYNC_POINTS - 1) {
             ref_index += (slice + 1) * segment_blocks;
-            ref_index %= lane_blocks;
+            if (ref_index >= lane_blocks) {
+                ref_index -= lane_blocks;
+            }
         }
 
         __global struct block_g *mem_ref = memory +
@@ -497,7 +499,9 @@ __kernel void argon2_kernel_oneshot(
 
                 if (pass != 0 && slice != ARGON2_SYNC_POINTS - 1) {
                     ref_index += (slice + 1) * segment_blocks;
-                    ref_index %= lane_blocks;
+                    if (ref_index >= lane_blocks) {
+                        ref_index -= lane_blocks;
+                    }
                 }
 
                 __global struct block_g *mem_ref = memory +
