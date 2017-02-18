@@ -145,8 +145,8 @@ void fill_block(__global const struct block_g *restrict ref_block,
     for (uint i = 0; i < QWORDS_PER_THREAD; i++) {
         uint pos_l = i * THREADS_PER_LANE +
                 (thread & 0x10) + ((thread + i * 4) & 0xf);
-        next_block->lo[pos_l] ^= prev_block->lo[pos_l];
-        next_block->hi[pos_l] ^= prev_block->hi[pos_l];
+        prev_block->lo[pos_l] ^= next_block->lo[pos_l];
+        prev_block->hi[pos_l] ^= next_block->hi[pos_l];
     }
 }
 
@@ -173,8 +173,8 @@ void fill_block_xor(__global const struct block_g *restrict ref_block,
     for (uint i = 0; i < QWORDS_PER_THREAD; i++) {
         uint pos_l = i * THREADS_PER_LANE +
                 (thread & 0x10) + ((thread + i * 4) & 0xf);
-        next_block->lo[pos_l] ^= prev_block->lo[pos_l];
-        next_block->hi[pos_l] ^= prev_block->hi[pos_l];
+        prev_block->lo[pos_l] ^= next_block->lo[pos_l];
+        prev_block->hi[pos_l] ^= next_block->hi[pos_l];
     }
 }
 #endif
@@ -373,15 +373,10 @@ __kernel void argon2_kernel_segment(
 
         for (uint i = 0; i < QWORDS_PER_THREAD; i++) {
             uint pos_l = (thread & 0x10) + ((thread + i * 4) & 0xf);
-            ulong out = upsample(curr->hi[i * THREADS_PER_LANE + pos_l],
-                                 curr->lo[i * THREADS_PER_LANE + pos_l]);
+            ulong out = upsample(prev->hi[i * THREADS_PER_LANE + pos_l],
+                                 prev->lo[i * THREADS_PER_LANE + pos_l]);
             mem_curr->data[i * THREADS_PER_LANE + thread] = out;
         }
-
-        /* swap curr and prev buffers: */
-        __local struct block_l *tmp = curr;
-        curr = prev;
-        prev = tmp;
 
         ++mem_curr;
     }
@@ -531,15 +526,10 @@ __kernel void argon2_kernel_oneshot(
 
                 for (uint i = 0; i < QWORDS_PER_THREAD; i++) {
                     uint pos_l = (thread & 0x10) + ((thread + i * 4) & 0xf);
-                    ulong out = upsample(curr->hi[i * THREADS_PER_LANE + pos_l],
-                                         curr->lo[i * THREADS_PER_LANE + pos_l]);
+                    ulong out = upsample(prev->hi[i * THREADS_PER_LANE + pos_l],
+                                         prev->lo[i * THREADS_PER_LANE + pos_l]);
                     mem_curr->data[i * THREADS_PER_LANE + thread] = out;
                 }
-
-                /* swap curr and prev buffers: */
-                __local struct block_l *tmp = curr;
-                curr = prev;
-                prev = tmp;
 
                 ++mem_curr;
             }
