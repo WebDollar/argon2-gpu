@@ -7,12 +7,12 @@ set(INCLUDE_INSTALL_DIR /usr/local/include)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+find_package(CUDA REQUIRED)
+
 set(CUDA_PROPAGATE_HOST_FLAGS OFF)
 set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};
     -std=c++11;-O3;--ptxas-options=-v;-arch sm_30;-lineinfo
 )
-
-find_package(CUDA REQUIRED)
 
 add_library(argon2-gpu-common SHARED
     lib/argon2-gpu-common/argon2params.cpp
