@@ -55,6 +55,7 @@ cat >$task_file <<EOF
 #PBS -l mem=16gb
 
 module add cmake-3.6.1
+module add cuda-8.0
 
 mkdir -p "$dest_dir/\$PBS_JOBID" || exit 1
 
