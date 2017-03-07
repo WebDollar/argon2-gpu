@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "programcontext.h"
+#include "kernels.h"
 #include "argon2-gpu-common/argon2params.h"
 
 namespace argon2 {
@@ -16,13 +17,8 @@ private:
     const Argon2Params *params;
     const Device *device;
 
-    std::size_t batchSize;
-    std::size_t memorySize;
-
-    bool bySegment;
-
-    cudaStream_t stream;
-    void *memoryBuffer;
+    Argon2KernelRunner runner;
+    uint32_t bestBlockSize;
 
 public:
     class PasswordWriter
@@ -58,13 +54,12 @@ public:
         const void *getHash() const;
     };
 
-    std::size_t getBatchSize() const { return batchSize; }
+    std::size_t getBatchSize() const { return runner.getBatchSize(); }
 
     ProcessingUnit(
             const ProgramContext *programContext, const Argon2Params *params,
             const Device *device, std::size_t batchSize,
             bool bySegment = true);
-    ~ProcessingUnit();
 
     void beginProcessing();
     void endProcessing();

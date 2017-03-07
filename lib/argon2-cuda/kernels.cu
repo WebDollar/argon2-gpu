@@ -4,6 +4,9 @@
 #endif
 
 #include "kernels.h"
+#include "cudaexception.h"
+
+#include <stdexcept>
 
 #define ARGON2_D 0
 #define ARGON2_I 1
@@ -288,21 +291,28 @@ __global__ void argon2_kernel_segment(
         struct block_g *memory, uint32_t passes, uint32_t lanes,
         uint32_t segment_blocks, uint32_t pass, uint32_t slice)
 {
+    extern __shared__ struct block_l shared_mem[];
+    struct block_l *shared = shared_mem;
+
     uint32_t job_id = blockIdx.z;
-    uint32_t lane   = blockIdx.y;
+    uint32_t lane   = blockIdx.y * blockDim.y + threadIdx.y;
     uint32_t thread = threadIdx.x;
 
     uint32_t lane_blocks = ARGON2_SYNC_POINTS * segment_blocks;
 
     /* select job's memory region: */
     memory += job_id * lanes * lane_blocks;
+    /* select warp's shared memory buffer: */
+    shared += threadIdx.y * (type == ARGON2_I ? 3 : 2);
 
     uint32_t thread_input;
-    __shared__ struct block_l local_curr, local_prev, local_addr;
-    struct block_l *curr = &local_curr;
-    struct block_l *prev = &local_prev;
+    struct block_l *curr = &shared[0];
+    struct block_l *prev = &shared[1];
+    struct block_l *addr;
 
     if (type == ARGON2_I) {
+        addr = &shared[2];
+
         switch (thread) {
         case 0:
             thread_input = pass;
@@ -331,7 +341,7 @@ __global__ void argon2_kernel_segment(
             if (thread == 6) {
                 ++thread_input;
             }
-            next_addresses(thread, &local_addr, curr, thread_input);
+            next_addresses(thread, addr, curr, thread_input);
         }
     }
 
@@ -362,7 +372,7 @@ __global__ void argon2_kernel_segment(
 
     for (uint32_t offset = start_offset; offset < segment_blocks; ++offset) {
         argon2_core<type, version>(
-                    memory, mem_curr, curr, prev, &local_addr,
+                    memory, mem_curr, curr, prev, addr,
                     lanes, segment_blocks, lane_blocks,
                     thread, &thread_input,
                     lane, pass, slice, offset);
@@ -379,7 +389,7 @@ __global__ void argon2_kernel_oneshot(
     extern __shared__ struct block_l shared_mem[];
     struct block_l *shared = shared_mem;
 
-    uint32_t job_id = blockIdx.z;
+    uint32_t job_id = blockIdx.z * blockDim.z + threadIdx.z;
     uint32_t lane   = threadIdx.y;
     uint32_t thread = threadIdx.x;
 
@@ -475,68 +485,143 @@ __global__ void argon2_kernel_oneshot(
     }
 }
 
-void argon2_run_kernel_segment(
-        uint32_t type, uint32_t version, uint32_t batchSize,
-        cudaStream_t stream, void *memory, uint32_t passes, uint32_t lanes,
-        uint32_t segment_blocks, uint32_t pass, uint32_t slice)
+Argon2KernelRunner::Argon2KernelRunner(
+        uint32_t type, uint32_t version, uint32_t passes, uint32_t lanes,
+        uint32_t segmentBlocks, uint32_t batchSize, bool bySegment)
+    : type(type), version(version), passes(passes), lanes(lanes),
+      segmentBlocks(segmentBlocks), batchSize(batchSize), bySegment(bySegment),
+      stream(nullptr), memory(nullptr), start(nullptr), end(nullptr)
 {
+    // FIXME: check overflow:
+    uint32_t memorySize = lanes * segmentBlocks * ARGON2_SYNC_POINTS
+            * ARGON2_BLOCK_SIZE * batchSize;
+
+    CudaException::check(cudaMallocManaged(&memory, memorySize,
+                                           cudaMemAttachHost));
+
+    CudaException::check(cudaEventCreate(&start));
+    CudaException::check(cudaEventCreate(&end));
+
+    CudaException::check(cudaStreamCreate(&stream));
+    CudaException::check(cudaStreamAttachMemAsync(stream, memory));
+    CudaException::check(cudaStreamSynchronize(stream));
+}
+
+Argon2KernelRunner::~Argon2KernelRunner()
+{
+    if (start != nullptr) {
+        cudaEventDestroy(start);
+    }
+    if (end != nullptr) {
+        cudaEventDestroy(end);
+    }
+    if (stream != nullptr) {
+        cudaStreamDestroy(stream);
+    }
+    if (memory != nullptr) {
+        cudaFree(memory);
+    }
+}
+
+void Argon2KernelRunner::runKernelSegment(uint32_t blockSize,
+                                          uint32_t pass, uint32_t slice)
+{
+    if (blockSize > lanes || lanes % blockSize != 0) {
+        throw std::logic_error("Invalid blockSize!");
+    }
+
     struct block_g *memory_blocks = (struct block_g *)memory;
-    dim3 blocks = dim3(1, lanes, batchSize);
-    dim3 threads = dim3(THREADS_PER_LANE);
+    dim3 blocks = dim3(1, lanes / blockSize, batchSize);
+    dim3 threads = dim3(THREADS_PER_LANE, blockSize);
     if (type == ARGON2_I) {
+        uint32_t shared_size = blockSize * ARGON2_BLOCK_SIZE * 3;
         if (version == ARGON2_VERSION_10) {
             argon2_kernel_segment<ARGON2_I, ARGON2_VERSION_10>
-                    <<<blocks, threads, 0, stream>>>(memory_blocks, passes, lanes,
-                                                     segment_blocks, pass, slice);
+                    <<<blocks, threads, shared_size, stream>>>(
+                        memory_blocks, passes, lanes, segmentBlocks,
+                        pass, slice);
         } else {
             argon2_kernel_segment<ARGON2_I, ARGON2_VERSION_13>
-                    <<<blocks, threads, 0, stream>>>(memory_blocks, passes, lanes,
-                                                     segment_blocks, pass, slice);
+                    <<<blocks, threads, shared_size, stream>>>(
+                        memory_blocks, passes, lanes, segmentBlocks,
+                        pass, slice);
         }
     } else {
+        uint32_t shared_size = blockSize * ARGON2_BLOCK_SIZE * 2;
         if (version == ARGON2_VERSION_10) {
             argon2_kernel_segment<ARGON2_D, ARGON2_VERSION_10>
-                    <<<blocks, threads, 0, stream>>>(memory_blocks, passes, lanes,
-                                                     segment_blocks, pass, slice);
+                    <<<blocks, threads, shared_size, stream>>>(
+                        memory_blocks, passes, lanes, segmentBlocks,
+                        pass, slice);
         } else {
             argon2_kernel_segment<ARGON2_D, ARGON2_VERSION_13>
-                    <<<blocks, threads, 0, stream>>>(memory_blocks, passes, lanes,
-                                                     segment_blocks, pass, slice);
+                    <<<blocks, threads, shared_size, stream>>>(
+                        memory_blocks, passes, lanes, segmentBlocks,
+                        pass, slice);
         }
     }
 }
 
-void argon2_run_kernel_oneshot(
-        uint32_t type, uint32_t version, uint32_t batchSize,
-        cudaStream_t stream, void *memory, uint32_t passes, uint32_t lanes,
-        uint32_t segment_blocks)
+void Argon2KernelRunner::runKernelOneshot(uint32_t blockSize)
 {
+    if (blockSize > batchSize || batchSize % blockSize != 0) {
+        throw std::logic_error("Invalid blockSize!");
+    }
+
     struct block_g *memory_blocks = (struct block_g *)memory;
-    dim3 blocks = dim3(1, 1, batchSize);
-    dim3 threads = dim3(THREADS_PER_LANE, lanes);
+    dim3 blocks = dim3(1, 1, batchSize / blockSize);
+    dim3 threads = dim3(THREADS_PER_LANE, lanes, blockSize);
     if (type == ARGON2_I) {
         uint32_t shared_size = lanes * ARGON2_BLOCK_SIZE * 3;
         if (version == ARGON2_VERSION_10) {
             argon2_kernel_oneshot<ARGON2_I, ARGON2_VERSION_10>
                     <<<blocks, threads, shared_size, stream>>>(
-                        memory_blocks, passes, lanes, segment_blocks);
+                        memory_blocks, passes, lanes, segmentBlocks);
         } else {
             argon2_kernel_oneshot<ARGON2_I, ARGON2_VERSION_13>
                     <<<blocks, threads, shared_size, stream>>>(
-                        memory_blocks, passes, lanes, segment_blocks);
+                        memory_blocks, passes, lanes, segmentBlocks);
         }
     } else {
         uint32_t shared_size = lanes * ARGON2_BLOCK_SIZE * 2;
         if (version == ARGON2_VERSION_10) {
             argon2_kernel_oneshot<ARGON2_D, ARGON2_VERSION_10>
                     <<<blocks, threads, shared_size, stream>>>(
-                        memory_blocks, passes, lanes, segment_blocks);
+                        memory_blocks, passes, lanes, segmentBlocks);
         } else {
             argon2_kernel_oneshot<ARGON2_D, ARGON2_VERSION_13>
                     <<<blocks, threads, shared_size, stream>>>(
-                        memory_blocks, passes, lanes, segment_blocks);
+                        memory_blocks, passes, lanes, segmentBlocks);
         }
     }
+}
+
+void Argon2KernelRunner::run(uint32_t blockSize)
+{
+    CudaException::check(cudaEventRecord(start, stream));
+
+    if (bySegment) {
+        for (uint32_t pass = 0; pass < passes; pass++) {
+            for (uint32_t slice = 0; slice < ARGON2_SYNC_POINTS; slice++) {
+                runKernelSegment(blockSize, pass, slice);
+            }
+        }
+    } else {
+        runKernelOneshot(blockSize);
+    }
+
+    CudaException::check(cudaGetLastError());
+
+    CudaException::check(cudaEventRecord(end, stream));
+}
+
+float Argon2KernelRunner::finish()
+{
+    CudaException::check(cudaStreamSynchronize(stream));
+
+    float time = 0.0;
+    CudaException::check(cudaEventElapsedTime(&time, start, end));
+    return time;
 }
 
 } // cuda

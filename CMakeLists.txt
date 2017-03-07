@@ -27,6 +27,14 @@ target_include_directories(argon2-gpu-common PRIVATE
     lib/argon2-gpu-common
 )
 
+# HACK because CMake is a piece of crap (remove this when we can depend on v3.7 and above):
+cuda_include_directories(
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/argon2-cuda
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib/argon2-cuda
+)
+
 cuda_add_library(argon2-cuda SHARED
     lib/argon2-cuda/device.cpp
     lib/argon2-cuda/globalcontext.cpp

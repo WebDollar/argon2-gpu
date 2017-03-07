@@ -3,36 +3,60 @@
 #include "cudaexception.h"
 #include "kernels.h"
 
+#include <limits>
+#ifndef NDEBUG
+#include <iostream>
+#endif
+
 namespace argon2 {
 namespace cuda {
 
 ProcessingUnit::ProcessingUnit(
         const ProgramContext *programContext, const Argon2Params *params,
-        const Device *device, std::size_t batchSize,
-        bool bySegment)
-    : programContext(programContext), params(params),
-      device(device), batchSize(batchSize), bySegment(bySegment),
-      stream(nullptr), memoryBuffer(nullptr)
+        const Device *device, std::size_t batchSize, bool bySegment)
+    : programContext(programContext), params(params), device(device),
+      runner(programContext->getArgon2Type(),
+             programContext->getArgon2Version(), params->getTimeCost(),
+             params->getLanes(), params->getSegmentBlocks(), batchSize,
+             bySegment),
+      bestBlockSize(1)
 {
-    // FIXME: check memSize out of bounds
-    CudaException::check(cudaStreamCreate(&stream));
+    CudaException::check(cudaSetDevice(device->getDeviceIndex()));
 
-    memorySize = params->getMemorySize() * batchSize;
+    if (runner.getMaxBlockSize() > 1) {
+#ifndef NDEBUG
+        std::cerr << "[INFO] Benchmarking block size..." << std::endl;
+#endif
 
-    CudaException::check(cudaMallocManaged(&memoryBuffer, memorySize,
-                                           cudaMemAttachHost));
+        float bestTime = std::numeric_limits<float>::infinity();
+        for (std::uint32_t blockSize = 1; blockSize <= runner.getMaxBlockSize();
+             blockSize *= 2)
+        {
+            float time;
+            try {
+                runner.run(blockSize);
+                time = runner.finish();
+            } catch(CudaException &ex) {
+#ifndef NDEBUG
+                std::cerr << "[WARN]   Exception on block size " << blockSize
+                          << ": " << ex.what() << std::endl;
+#endif
+                break;
+            }
 
-    CudaException::check(cudaStreamAttachMemAsync(stream, memoryBuffer));
-    CudaException::check(cudaStreamSynchronize(stream));
-}
+#ifndef NDEBUG
+            std::cerr << "[INFO]   Block size " << blockSize << ": "
+                      << time << " ms" << std::endl;
+#endif
 
-ProcessingUnit::~ProcessingUnit()
-{
-    if (stream != nullptr) {
-        cudaStreamDestroy(stream);
-    }
-    if (memoryBuffer != nullptr) {
-        cudaFree(memoryBuffer);
+            if (time < bestTime) {
+                bestTime = time;
+                bestBlockSize = blockSize;
+            }
+        }
+#ifndef NDEBUG
+        std::cerr << "[INFO] Picked block size: " << bestBlockSize << std::endl;
+#endif
     }
 }
 
@@ -41,7 +65,7 @@ ProcessingUnit::PasswordWriter::PasswordWriter(
     : params(parent.params),
       type(parent.programContext->getArgon2Type()),
       version(parent.programContext->getArgon2Version()),
-      dest(static_cast<std::uint8_t *>(parent.memoryBuffer))
+      dest(static_cast<std::uint8_t *>(parent.runner.getMemory()))
 {
     dest += index * params->getMemorySize();
 }
@@ -65,7 +89,7 @@ void ProcessingUnit::PasswordWriter::setPassword(
 ProcessingUnit::HashReader::HashReader(
         ProcessingUnit &parent, std::size_t index)
     : params(parent.params),
-      src(static_cast<const std::uint8_t *>(parent.memoryBuffer)),
+      src(static_cast<const std::uint8_t *>(parent.runner.getMemory())),
       buffer(new std::uint8_t[params->getOutputLength()])
 {
     src += index * params->getMemorySize();
@@ -89,33 +113,13 @@ const void *ProcessingUnit::HashReader::getHash() const
 
 void ProcessingUnit::beginProcessing()
 {
-    if (bySegment) {
-        for (unsigned int pass = 0; pass < params->getTimeCost(); pass++) {
-            for (unsigned int slice = 0; slice < ARGON2_SYNC_POINTS; slice++) {
-                argon2_run_kernel_segment(
-                            programContext->getArgon2Type(),
-                            programContext->getArgon2Version(),
-                            batchSize, stream, (unsigned long *)memoryBuffer,
-                            params->getTimeCost(),
-                            params->getLanes(),
-                            params->getSegmentBlocks(),
-                            pass, slice);
-            }
-        }
-    } else {
-        argon2_run_kernel_oneshot(
-                    programContext->getArgon2Type(),
-                    programContext->getArgon2Version(),
-                    batchSize, stream, (unsigned long *)memoryBuffer,
-                    params->getTimeCost(),
-                    params->getLanes(),
-                    params->getSegmentBlocks());
-    }
+    CudaException::check(cudaSetDevice(device->getDeviceIndex()));
+    runner.run(bestBlockSize);
 }
 
 void ProcessingUnit::endProcessing()
 {
-    CudaException::check(cudaStreamSynchronize(stream));
+    runner.finish();
 }
 
 } // namespace cuda
