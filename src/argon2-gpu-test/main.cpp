@@ -71,7 +71,7 @@ std::size_t runTests(const GlobalContext &global, const Device &device,
                      Type type, Version version,
                      const TestCase *casesFrom, const TestCase *casesTo)
 {
-    std::cerr << "Running tests for Argon2"
+    std::cout << "Running tests for Argon2"
               << (type == ARGON2_I ? "i" : "d")
               << " v" << (version == ARGON2_VERSION_10 ? "1.0" : "1.3")
               << "..." << std::endl;
@@ -80,9 +80,9 @@ std::size_t runTests(const GlobalContext &global, const Device &device,
     ProgramContext progCtx(&global, { device }, type, version);
     for (auto bySegment : {true, false}) {
         for (auto tc = casesFrom; tc < casesTo; ++tc) {
-            std::cerr << "  " << (bySegment ? "[by-segment] " : "[oneshot] ");
-            tc->dump(std::cerr);
-            std::cerr << "... ";
+            std::cout << "  " << (bySegment ? "[by-segment] " : "[oneshot] ");
+            tc->dump(std::cout);
+            std::cout << "... ";
 
             auto &params = tc->getParams();
             ProcessingUnit pu(&progCtx, &params, &device, 1, bySegment);
@@ -99,14 +99,14 @@ std::size_t runTests(const GlobalContext &global, const Device &device,
                                    params.getOutputLength()) == 0;
             if (!res) {
                 ++failures;
-                std::cerr << "FAIL" << std::endl;
+                std::cout << "FAIL" << std::endl;
             } else {
-                std::cerr << "PASS" << std::endl;
+                std::cout << "PASS" << std::endl;
             }
         }
     }
     if (!failures) {
-        std::cerr << "  ALL PASSED" << std::endl;
+        std::cout << "  ALL PASSED" << std::endl;
     }
     return failures;
 }
@@ -342,7 +342,7 @@ void runAllTests(std::size_t &failures)
 int main(void) {
     std::size_t failures = 0;
 
-    std::cerr << "Running CUDA tests..." << std::endl;
+    std::cout << "Running CUDA tests..." << std::endl;
     try {
         runAllTests<cuda::Device, cuda::GlobalContext, cuda::ProgramContext,
                 cuda::ProcessingUnit>(failures);
@@ -351,7 +351,7 @@ int main(void) {
         return 2;
     }
 
-    std::cerr << "Running OpenCL tests..." << std::endl;
+    std::cout << "Running OpenCL tests..." << std::endl;
     try {
         runAllTests<opencl::Device, opencl::GlobalContext, opencl::ProgramContext,
                 opencl::ProcessingUnit>(failures);
@@ -362,7 +362,7 @@ int main(void) {
     }
 
     if (failures) {
-        std::cerr << failures << " TESTS FAILED!" << std::endl;
+        std::cout << failures << " TESTS FAILED!" << std::endl;
         return 1;
     }
     return 0;
