@@ -85,7 +85,7 @@ static CommandLineParser<Arguments> buildCmdLineParser()
             }), "samples", 's', "number of batches to run and measure", "10", "N"),
         new ArgumentOption<Arguments>(
             [] (Arguments &state, const std::string &type) { state.kernelType = type; },
-            "kernel-type", 'k', "Kernel type (by-segment|oneshot)", "by-segment", "TYPE"),
+            "kernel-type", 'k', "kernel type (by-segment|oneshot)", "by-segment", "TYPE"),
 
         new FlagOption<Arguments>(
             [] (Arguments &state) { state.showHelp = true; },
