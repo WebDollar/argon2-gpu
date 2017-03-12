@@ -35,32 +35,34 @@ data$hps_normalized <- data$m_cost * data$t_cost * data$hashes_per_second
 make_plots_hps <- function(mode, kernel, type) {
   data_b <- data[data$m_cost >= 4096 & data$Mode == mode & data$Kernel.mode == kernel & data$Version == 'v1.3' & data$Type == paste0('Argon2', type),]
   
-  data_b_f_t_cost <- data_b$t_cost %in% c(1, 2, 4, 8, 16)
-  data_b_f_m_cost <- data_b$m_cost %in% c(4096, 16384, 65536, 262144, 1048576)
-  
-  prefix <- paste0('plot-', bench_id, '-', mode, '-', kernel, '-argon2', type)
-  
-  save_graph(paste0(prefix, '-t_cost'),
-             ggplot(data_b[data_b_f_m_cost,], aes(x=t_cost, y=hps_normalized, group=Commit, colour=Commit)) +
-               geom_line() +
-               scale_y_continuous(labels=comma) +
-               facet_grid(lanes~m_cost, labeller=label_both) +
-               xlab('t_cost') + ylab('Hashes per second (normalized)'))
-  
-  save_graph(paste0(prefix, '-m_cost'),
-             ggplot(data_b[data_b_f_t_cost,], aes(x=m_cost, y=hps_normalized, group=Commit, colour=Commit)) +
-               geom_line() +
-               scale_x_log10() +
-               scale_y_continuous(labels=comma) +
-               facet_grid(t_cost~lanes, labeller=label_both) +
-               xlab('m_cost (log scale)') + ylab('Hashes per second (normalized)'))
-  
-  save_graph(paste0(prefix, '-lanes'),
-             ggplot(data_b[data_b_f_t_cost & data_b_f_m_cost,], aes(x=lanes, y=hps_normalized, group=Commit, colour=Commit)) +
-               geom_line() +
-               scale_y_continuous(labels=comma) +
-               facet_grid(t_cost~m_cost, labeller=label_both) +
-               xlab('lanes') + ylab('Hashes per second (normalized)'))
+  if (length(data_b$hashes_per_second) != c(0)) {
+    data_b_f_t_cost <- data_b$t_cost %in% c(1, 2, 4, 8, 16)
+    data_b_f_m_cost <- data_b$m_cost %in% c(4096, 16384, 65536, 262144, 1048576)
+    
+    prefix <- paste0('plot-', bench_id, '-', mode, '-', kernel, '-argon2', type)
+    
+    save_graph(paste0(prefix, '-t_cost'),
+               ggplot(data_b[data_b_f_m_cost,], aes(x=t_cost, y=hps_normalized, group=Commit, colour=Commit)) +
+                 geom_line() +
+                 scale_y_continuous(labels=comma) +
+                 facet_grid(lanes~m_cost, labeller=label_both) +
+                 xlab('t_cost') + ylab('Hashes per second (normalized)'))
+    
+    save_graph(paste0(prefix, '-m_cost'),
+               ggplot(data_b[data_b_f_t_cost,], aes(x=m_cost, y=hps_normalized, group=Commit, colour=Commit)) +
+                 geom_line() +
+                 scale_x_log10() +
+                 scale_y_continuous(labels=comma) +
+                 facet_grid(t_cost~lanes, labeller=label_both) +
+                 xlab('m_cost (log scale)') + ylab('Hashes per second (normalized)'))
+    
+    save_graph(paste0(prefix, '-lanes'),
+               ggplot(data_b[data_b_f_t_cost & data_b_f_m_cost,], aes(x=lanes, y=hps_normalized, group=Commit, colour=Commit)) +
+                 geom_line() +
+                 scale_y_continuous(labels=comma) +
+                 facet_grid(t_cost~m_cost, labeller=label_both) +
+                 xlab('lanes') + ylab('Hashes per second (normalized)'))
+  }
 }
 
 for (mode in c('opencl', 'cuda')) {
