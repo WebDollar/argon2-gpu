@@ -19,10 +19,14 @@ private:
     std::uint32_t passes, lanes, segmentBlocks;
     std::uint32_t batchSize;
     bool bySegment;
+    bool precompute;
 
     cudaEvent_t start, end;
     cudaStream_t stream;
     void *memory;
+    void *refs;
+
+    void precomputeRefs();
 
     void runKernelSegment(std::uint32_t blockSize,
                           std::uint32_t pass, std::uint32_t slice);
@@ -45,7 +49,7 @@ public:
     Argon2KernelRunner(std::uint32_t type, std::uint32_t version,
                        std::uint32_t passes, std::uint32_t lanes,
                        std::uint32_t segmentBlocks, std::uint32_t batchSize,
-                       bool bySegment);
+                       bool bySegment, bool precompute);
     ~Argon2KernelRunner();
 
     void run(std::uint32_t blockSize);

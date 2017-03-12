@@ -28,6 +28,7 @@ struct Arguments
     std::size_t lanes = 1;
     std::size_t batchSize = 16;
     std::string kernelType = "by-segment";
+    bool precomputeRefs = false;
     std::size_t sampleCount = 10;
 };
 
@@ -86,6 +87,9 @@ static CommandLineParser<Arguments> buildCmdLineParser()
         new ArgumentOption<Arguments>(
             [] (Arguments &state, const std::string &type) { state.kernelType = type; },
             "kernel-type", 'k', "kernel type (by-segment|oneshot)", "by-segment", "TYPE"),
+        new FlagOption<Arguments>(
+            [] (Arguments &state) { state.precomputeRefs = true; },
+            "precompute-refs", 'p', "precompute reference indices with Argon2i"),
 
         new FlagOption<Arguments>(
             [] (Arguments &state) { state.showHelp = true; },
@@ -142,8 +146,8 @@ int main(int, const char * const *argv)
     }
 
     BenchmarkDirector director(argv[0], type, version,
-            args.t_cost, args.m_cost, args.lanes,
-            args.batchSize, bySegment, args.sampleCount,
+            args.t_cost, args.m_cost, args.lanes, args.batchSize,
+            bySegment, args.precomputeRefs, args.sampleCount,
             args.outputMode, args.outputType);
     if (args.mode == "opencl") {
         OpenCLExecutive exec(args.deviceIndex, args.listDevices);

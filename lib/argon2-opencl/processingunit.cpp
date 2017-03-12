@@ -9,10 +9,11 @@ namespace opencl {
 ProcessingUnit::ProcessingUnit(
         const ProgramContext *programContext, const Argon2Params *params,
         const Device *device, std::size_t batchSize,
-        bool bySegment)
+        bool bySegment, bool precomputeRefs)
     : programContext(programContext), params(params),
       device(device), batchSize(batchSize), bySegment(bySegment)
 {
+    // TODO: implement precomputeRefs
     // FIXME: check memSize out of bounds
     auto &clContext = programContext->getContext();
     auto lanes = params->getLanes();

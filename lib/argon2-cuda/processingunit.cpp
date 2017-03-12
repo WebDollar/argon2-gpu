@@ -13,12 +13,13 @@ namespace cuda {
 
 ProcessingUnit::ProcessingUnit(
         const ProgramContext *programContext, const Argon2Params *params,
-        const Device *device, std::size_t batchSize, bool bySegment)
+        const Device *device, std::size_t batchSize, bool bySegment,
+        bool precomputeRefs)
     : programContext(programContext), params(params), device(device),
       runner(programContext->getArgon2Type(),
              programContext->getArgon2Version(), params->getTimeCost(),
              params->getLanes(), params->getSegmentBlocks(), batchSize,
-             bySegment),
+             bySegment, precomputeRefs),
       bestBlockSize(1)
 {
     CudaException::check(cudaSetDevice(device->getDeviceIndex()));
