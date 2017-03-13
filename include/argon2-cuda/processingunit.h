@@ -18,7 +18,8 @@ private:
     const Device *device;
 
     Argon2KernelRunner runner;
-    uint32_t bestBlockSize;
+    uint32_t bestLanesPerBlock;
+    uint32_t bestJobsPerBlock;
 
 public:
     class PasswordWriter

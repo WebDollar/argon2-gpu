@@ -28,20 +28,18 @@ private:
 
     void precomputeRefs();
 
-    void runKernelSegment(std::uint32_t blockSize,
+    void runKernelSegment(std::uint32_t lanesPerBlock,
+                          std::uint32_t jobsPerBlock,
                           std::uint32_t pass, std::uint32_t slice);
-    void runKernelOneshot(std::uint32_t blockSize);
-
-    static uint32_t checkPowerOf2(uint32_t v)
-    {
-        return (v & (v - 1)) == 0 ? v : 1;
-    }
+    void runKernelOneshot(std::uint32_t lanesPerBlock,
+                          std::uint32_t jobsPerBlock);
 
 public:
-    std::uint32_t getMaxBlockSize() const
-    {
-        return checkPowerOf2(bySegment ? lanes : batchSize);
-    }
+    std::uint32_t getMinLanesPerBlock() const { return bySegment ? 1 : lanes; }
+    std::uint32_t getMaxLanesPerBlock() const { return lanes; }
+
+    std::uint32_t getMinJobsPerBlock() const { return 1; }
+    std::uint32_t getMaxJobsPerBlock() const { return batchSize; }
 
     std::uint32_t getBatchSize() const { return batchSize; }
     void *getMemory() const { return memory; }
@@ -52,7 +50,7 @@ public:
                        bool bySegment, bool precompute);
     ~Argon2KernelRunner();
 
-    void run(std::uint32_t blockSize);
+    void run(std::uint32_t lanesPerBlock, std::uint32_t jobsPerBlock);
     float finish();
 };
 

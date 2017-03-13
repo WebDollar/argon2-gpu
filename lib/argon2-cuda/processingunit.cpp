@@ -20,43 +20,84 @@ ProcessingUnit::ProcessingUnit(
              programContext->getArgon2Version(), params->getTimeCost(),
              params->getLanes(), params->getSegmentBlocks(), batchSize,
              bySegment, precomputeRefs),
-      bestBlockSize(1)
+      bestLanesPerBlock(runner.getMinLanesPerBlock()),
+      bestJobsPerBlock(runner.getMinJobsPerBlock())
 {
     CudaException::check(cudaSetDevice(device->getDeviceIndex()));
 
-    if (runner.getMaxBlockSize() > 1) {
+    if (runner.getMaxLanesPerBlock() > runner.getMinLanesPerBlock()) {
 #ifndef NDEBUG
-        std::cerr << "[INFO] Benchmarking block size..." << std::endl;
+        std::cerr << "[INFO] Tuning lanes per block..." << std::endl;
 #endif
 
         float bestTime = std::numeric_limits<float>::infinity();
-        for (std::uint32_t blockSize = 1; blockSize <= runner.getMaxBlockSize();
-             blockSize *= 2)
+        for (std::uint32_t lpb = 1; lpb <= runner.getMaxLanesPerBlock();
+             lpb *= 2)
         {
             float time;
             try {
-                runner.run(blockSize);
+                runner.run(lpb, bestJobsPerBlock);
                 time = runner.finish();
             } catch(CudaException &ex) {
 #ifndef NDEBUG
-                std::cerr << "[WARN]   Exception on block size " << blockSize
-                          << ": " << ex.what() << std::endl;
+                std::cerr << "[WARN]   CUDA error on " << lpb
+                          << "lanes per block: " << ex.what() << std::endl;
 #endif
                 break;
             }
 
 #ifndef NDEBUG
-            std::cerr << "[INFO]   Block size " << blockSize << ": "
+            std::cerr << "[INFO]   " << lpb << " lanes per block: "
                       << time << " ms" << std::endl;
 #endif
 
             if (time < bestTime) {
                 bestTime = time;
-                bestBlockSize = blockSize;
+                bestLanesPerBlock = lpb;
             }
         }
 #ifndef NDEBUG
-        std::cerr << "[INFO] Picked block size: " << bestBlockSize << std::endl;
+        std::cerr << "[INFO] Picked " << bestLanesPerBlock
+                  << " lanes per block." << std::endl;
+#endif
+    }
+
+    /* Only tune jobs per block if we hit maximum lanes per block: */
+    if (bestLanesPerBlock == runner.getMaxLanesPerBlock()
+            && runner.getMaxJobsPerBlock() > runner.getMinJobsPerBlock()) {
+#ifndef NDEBUG
+        std::cerr << "[INFO] Tuning jobs per block..." << std::endl;
+#endif
+
+        float bestTime = std::numeric_limits<float>::infinity();
+        for (std::uint32_t jpb = 1; jpb <= runner.getMaxJobsPerBlock();
+             jpb *= 2)
+        {
+            float time;
+            try {
+                runner.run(bestLanesPerBlock, jpb);
+                time = runner.finish();
+            } catch(CudaException &ex) {
+#ifndef NDEBUG
+                std::cerr << "[WARN]   CUDA error on " << jpb
+                          << " jobs per block: " << ex.what() << std::endl;
+#endif
+                break;
+            }
+
+#ifndef NDEBUG
+            std::cerr << "[INFO]   " << jpb << " jobs per block: "
+                      << time << " ms" << std::endl;
+#endif
+
+            if (time < bestTime) {
+                bestTime = time;
+                bestJobsPerBlock = jpb;
+            }
+        }
+#ifndef NDEBUG
+        std::cerr << "[INFO] Picked " << bestJobsPerBlock
+                  << " jobs per block." << std::endl;
 #endif
     }
 }
@@ -115,7 +156,7 @@ const void *ProcessingUnit::HashReader::getHash() const
 void ProcessingUnit::beginProcessing()
 {
     CudaException::check(cudaSetDevice(device->getDeviceIndex()));
-    runner.run(bestBlockSize);
+    runner.run(bestLanesPerBlock, bestJobsPerBlock);
 }
 
 void ProcessingUnit::endProcessing()

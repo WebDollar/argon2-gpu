@@ -793,16 +793,22 @@ Argon2KernelRunner::~Argon2KernelRunner()
     }
 }
 
-void Argon2KernelRunner::runKernelSegment(uint32_t blockSize,
+void Argon2KernelRunner::runKernelSegment(uint32_t lanesPerBlock,
+                                          uint32_t jobsPerBlock,
                                           uint32_t pass, uint32_t slice)
 {
-    if (blockSize > lanes || lanes % blockSize != 0) {
-        throw std::logic_error("Invalid blockSize!");
+    if (lanesPerBlock > lanes || lanes % lanesPerBlock != 0) {
+        throw std::logic_error("Invalid lanesPerBlock!");
+    }
+
+    if (jobsPerBlock > batchSize || batchSize % jobsPerBlock != 0) {
+        throw std::logic_error("Invalid jobsPerBlock!");
     }
 
     struct block_g *memory_blocks = (struct block_g *)memory;
-    dim3 blocks = dim3(1, lanes / blockSize, batchSize);
-    dim3 threads = dim3(THREADS_PER_LANE, blockSize);
+    dim3 blocks = dim3(1, lanes / lanesPerBlock, batchSize / jobsPerBlock);
+    dim3 threads = dim3(THREADS_PER_LANE, lanesPerBlock, jobsPerBlock);
+    uint32_t blockSize = lanesPerBlock * jobsPerBlock;
     if (type == ARGON2_I) {
         if (precompute) {
             uint32_t shared_size = blockSize * ARGON2_BLOCK_SIZE * 2;
@@ -848,18 +854,24 @@ void Argon2KernelRunner::runKernelSegment(uint32_t blockSize,
     }
 }
 
-void Argon2KernelRunner::runKernelOneshot(uint32_t blockSize)
+void Argon2KernelRunner::runKernelOneshot(uint32_t lanesPerBlock,
+                                          uint32_t jobsPerBlock)
 {
-    if (blockSize > batchSize || batchSize % blockSize != 0) {
-        throw std::logic_error("Invalid blockSize!");
+    if (lanesPerBlock != lanes) {
+        throw std::logic_error("Invalid lanesPerBlock!");
+    }
+
+    if (jobsPerBlock > batchSize || batchSize % jobsPerBlock != 0) {
+        throw std::logic_error("Invalid jobsPerBlock!");
     }
 
     struct block_g *memory_blocks = (struct block_g *)memory;
-    dim3 blocks = dim3(1, 1, batchSize / blockSize);
-    dim3 threads = dim3(THREADS_PER_LANE, lanes, blockSize);
+    dim3 blocks = dim3(1, 1, batchSize / jobsPerBlock);
+    dim3 threads = dim3(THREADS_PER_LANE, lanes, jobsPerBlock);
+    uint32_t blockSize = lanesPerBlock * jobsPerBlock;
     if (type == ARGON2_I) {
         if (precompute) {
-            uint32_t shared_size = lanes * ARGON2_BLOCK_SIZE * 2;
+            uint32_t shared_size = blockSize * ARGON2_BLOCK_SIZE * 2;
             struct ref *refs = (struct ref *)this->refs;
             if (version == ARGON2_VERSION_10) {
                 argon2i_kernel_oneshot_precompute<ARGON2_VERSION_10>
@@ -871,7 +883,7 @@ void Argon2KernelRunner::runKernelOneshot(uint32_t blockSize)
                             memory_blocks, refs, passes, lanes, segmentBlocks);
             }
         } else {
-            uint32_t shared_size = lanes * ARGON2_BLOCK_SIZE * 3;
+            uint32_t shared_size = blockSize * ARGON2_BLOCK_SIZE * 3;
             if (version == ARGON2_VERSION_10) {
                 argon2_kernel_oneshot<ARGON2_I, ARGON2_VERSION_10>
                         <<<blocks, threads, shared_size, stream>>>(
@@ -883,7 +895,7 @@ void Argon2KernelRunner::runKernelOneshot(uint32_t blockSize)
             }
         }
     } else {
-        uint32_t shared_size = lanes * ARGON2_BLOCK_SIZE * 2;
+        uint32_t shared_size = blockSize * ARGON2_BLOCK_SIZE * 2;
         if (version == ARGON2_VERSION_10) {
             argon2_kernel_oneshot<ARGON2_D, ARGON2_VERSION_10>
                     <<<blocks, threads, shared_size, stream>>>(
@@ -896,18 +908,18 @@ void Argon2KernelRunner::runKernelOneshot(uint32_t blockSize)
     }
 }
 
-void Argon2KernelRunner::run(uint32_t blockSize)
+void Argon2KernelRunner::run(uint32_t lanesPerBlock, uint32_t jobsPerBlock)
 {
     CudaException::check(cudaEventRecord(start, stream));
 
     if (bySegment) {
         for (uint32_t pass = 0; pass < passes; pass++) {
             for (uint32_t slice = 0; slice < ARGON2_SYNC_POINTS; slice++) {
-                runKernelSegment(blockSize, pass, slice);
+                runKernelSegment(lanesPerBlock, jobsPerBlock, pass, slice);
             }
         }
     } else {
-        runKernelOneshot(blockSize);
+        runKernelOneshot(lanesPerBlock, jobsPerBlock);
     }
 
     CudaException::check(cudaGetLastError());
