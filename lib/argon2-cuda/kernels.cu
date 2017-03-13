@@ -369,7 +369,7 @@ __global__ void argon2i_kernel_segment_precompute(
     extern __shared__ struct block_l shared_mem[];
     struct block_l *shared = shared_mem;
 
-    uint32_t job_id = blockIdx.z;
+    uint32_t job_id = blockIdx.z * blockDim.z + threadIdx.z;
     uint32_t lane   = blockIdx.y * blockDim.y + threadIdx.y;
     uint32_t thread = threadIdx.x;
 
@@ -523,7 +523,7 @@ __global__ void argon2_kernel_segment(
     extern __shared__ struct block_l shared_mem[];
     struct block_l *shared = shared_mem;
 
-    uint32_t job_id = blockIdx.z;
+    uint32_t job_id = blockIdx.z * blockDim.z + threadIdx.z;
     uint32_t lane   = blockIdx.y * blockDim.y + threadIdx.y;
     uint32_t thread = threadIdx.x;
 
