@@ -257,9 +257,9 @@ __global__ void argon2i_precompute_kernel(
         struct ref *refs, uint32_t passes, uint32_t lanes,
         uint32_t segment_blocks)
 {
-    uint32_t block_id = blockIdx.x * blockDim.x + threadIdx.x;
-    uint32_t warp = threadIdx.x;
-    uint32_t thread = threadIdx.y;
+    uint32_t block_id = blockIdx.y * blockDim.y + threadIdx.y;
+    uint32_t warp = threadIdx.y;
+    uint32_t thread = threadIdx.x;
 
     uint32_t segment_addr_blocks = (segment_blocks + ARGON2_QWORDS_IN_BLOCK - 1)
             / ARGON2_QWORDS_IN_BLOCK;
@@ -766,8 +766,8 @@ void Argon2KernelRunner::precomputeRefs()
             / ARGON2_QWORDS_IN_BLOCK;
     uint32_t segments = passes * lanes * ARGON2_SYNC_POINTS;
 
-    dim3 blocks = dim3(segments * segmentAddrBlocks);
-    dim3 threads = dim3(1, THREADS_PER_LANE);
+    dim3 blocks = dim3(1, segments * segmentAddrBlocks);
+    dim3 threads = dim3(THREADS_PER_LANE);
 
     uint32_t shmemSize = sizeof(struct shmem_precompute);
     argon2i_precompute_kernel<<<blocks, threads, shmemSize, stream>>>(
