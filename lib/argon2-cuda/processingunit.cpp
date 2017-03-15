@@ -25,6 +25,16 @@ ProcessingUnit::ProcessingUnit(
 {
     CudaException::check(cudaSetDevice(device->getDeviceIndex()));
 
+    auto memory = static_cast<std::uint8_t *>(runner.getMemory());
+
+    /* pre-fill first blocks with pseudo-random data: */
+    for (std::size_t i = 0; i < batchSize; i++) {
+        params->fillFirstBlocks(memory, NULL, 0,
+                                programContext->getArgon2Type(),
+                                programContext->getArgon2Version());
+        memory += params->getMemorySize();
+    }
+
     if (runner.getMaxLanesPerBlock() > runner.getMinLanesPerBlock()) {
 #ifndef NDEBUG
         std::cerr << "[INFO] Tuning lanes per block..." << std::endl;
