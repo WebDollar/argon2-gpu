@@ -41,7 +41,7 @@ ProcessingUnit::ProcessingUnit(
             } catch(CudaException &ex) {
 #ifndef NDEBUG
                 std::cerr << "[WARN]   CUDA error on " << lpb
-                          << "lanes per block: " << ex.what() << std::endl;
+                          << " lanes per block: " << ex.what() << std::endl;
 #endif
                 break;
             }
