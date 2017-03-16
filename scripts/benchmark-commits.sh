@@ -23,14 +23,13 @@ fi
 
 shift 3
 
-max_memory="$1"
-batch_size="$2"
-samples="$3"
-modes="$4"
-kernels="$5"
-versions="$6"
-types="$7"
-precomputes="$8"
+batch_size="$1"
+samples="$2"
+modes="$3"
+kernels="$4"
+versions="$5"
+types="$6"
+precomputes="$7"
 
 if [ -z "$max_memory" ]; then
     echo "ERROR: Max memory not specified!" 1>&2
@@ -54,7 +53,7 @@ for commit in $@; do
     
     make || exit 1
     
-    "$dirname/run-benchmark.sh" "$max_memory" "$batch_size" "$samples" \
+    "$dirname/run-benchmark.sh" "$batch_size" "$samples" \
         "$modes" "$kernels" "$versions" "$types" "$precomputes" \
         | tee "$dst_dir/bench-$bench_id-$commit.csv" || exit 1
 done
