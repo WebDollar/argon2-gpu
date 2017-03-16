@@ -31,11 +31,6 @@ versions="$5"
 types="$6"
 precomputes="$7"
 
-if [ -z "$max_memory" ]; then
-    echo "ERROR: Max memory not specified!" 1>&2
-    exit 1
-fi
-
 if [ -z "$batch_size" ]; then
     echo "ERROR: Batch size not specified!" 1>&2
     exit 1
