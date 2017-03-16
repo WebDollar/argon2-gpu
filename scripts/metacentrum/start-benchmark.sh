@@ -34,6 +34,10 @@ if [ -z "$queue" ]; then
     queue=gpu
 fi
 
+if [ -z "$run_tests" ]; then
+    run_tests='yes'
+fi
+
 REPO_URL='https://gitlab.com/omos/argon2-gpu.git'
 
 dest_dir="$(pwd)"
