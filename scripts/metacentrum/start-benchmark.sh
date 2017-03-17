@@ -2,7 +2,7 @@
 
 machines="$1"
 branches="$2"
-batch_size="$3"
+max_batch_size="$3"
 samples="$4"
 duration="$5"
 queue="$6"
@@ -18,8 +18,8 @@ if [ -z "$branches" ]; then
     exit 1
 fi
 
-if [ -z "$batch_size" ]; then
-    batch_size=256
+if [ -z "$max_batch_size" ]; then
+    max_batch_size=256
 fi
 
 if [ -z "$samples" ]; then
@@ -89,7 +89,7 @@ if [ "$run_tests" == "yes" ]; then
     ./argon2-gpu-test
 fi
 
-bash scripts/benchmark-commits.sh "$machine" . .. "$batch_size" "$samples" '' '' '' '' '' $branches
+bash scripts/benchmark-commits.sh "$machine" . .. "$max_batch_size" "$samples" '' '' '' '' '' $branches
 EOF
 
     "$qsub" "$task_file"

@@ -23,7 +23,7 @@ fi
 
 shift 3
 
-batch_size="$1"
+max_batch_size="$1"
 samples="$2"
 modes="$3"
 kernels="$4"
@@ -31,7 +31,7 @@ versions="$5"
 types="$6"
 precomputes="$7"
 
-if [ -z "$batch_size" ]; then
+if [ -z "$max_batch_size" ]; then
     echo "ERROR: Batch size not specified!" 1>&2
     exit 1
 fi
@@ -48,7 +48,7 @@ for commit in $@; do
     
     make || exit 1
     
-    "$dirname/run-benchmark.sh" "$batch_size" "$samples" \
+    "$dirname/run-benchmark.sh" "$max_batch_size" "$samples" \
         "$modes" "$kernels" "$versions" "$types" "$precomputes" \
         | tee "$dst_dir/bench-$bench_id-$commit.csv" || exit 1
 done

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-batch_size="$1"
+max_batch_size="$1"
 samples="$2"
 modes="$3"
 kernels="$4"
@@ -8,8 +8,8 @@ versions="$5"
 types="$6"
 precomputes="$7"
 
-if [ -z "$batch_size" ]; then
-    batch_size=64
+if [ -z "$max_batch_size" ]; then
+    max_batch_size=64
 fi
 
 if [ -z "$samples" ]; then
@@ -36,19 +36,7 @@ if [ -z "$precomputes" ]; then
     precomputes='no yes'
 fi
 
-max_m_cost=1024
-
-echo "[INFO] Benchmarking max memory cost..." 1>&2
-while true; do
-    next_m_cost=$(( $max_m_cost * 2 ))
-    if ! ./argon2-gpu-bench -t i -v 1.3 -p -m cuda -b $batch_size -s 1 -T 1 -M $next_m_cost -L 16 >/dev/null 2>/dev/null; then
-        break
-    fi
-    max_m_cost=$next_m_cost
-done
-echo "[INFO] Max memory cost: $max_m_cost" 1>&2
-
-echo "mode,kernel,version,type,precompute,t_cost,m_cost,lanes,ns_per_hash"
+echo "mode,kernel,version,type,precompute,t_cost,m_cost,lanes,ns_per_hash,batch_size"
 for mode in $modes; do
     for kernel in $kernels; do
         for version in $versions; do
@@ -59,23 +47,38 @@ for mode in $modes; do
                     precomputes2='no'
                 fi
                 for precompute in $precomputes2; do
-                    for (( m_cost = 64; m_cost <= $max_m_cost; m_cost *= 4 )); do
-                        for (( t_cost = 1; t_cost <= 16; t_cost *= 2 )); do
-                            for (( lanes = 1; lanes <= 8; lanes *= 2 )); do
+                    for t_cost in 1 2 4 6 8; do
+                        for (( lanes = 1; lanes <= 8; lanes *= 2 )); do
+                            batch_size=$max_batch_size
+                            for (( m_cost = 64; ; m_cost *= 2 )); do
                                 if [ $precompute == 'yes' ]; then
                                     precompute_flag='-p'
                                 else
                                     precompute_flag=''
                                 fi
-                                ns_per_hash=$(./argon2-gpu-bench \
-                                    -t $type -v $version \
-                                    $precompute_flag \
-                                    -m $mode -k $kernel \
-                                    -b $batch_size -s $samples \
-                                    -T $t_cost -M $m_cost -L $lanes \
-                                    -o ns-per-hash --output-mode mean)
                                 
-                                echo "$mode,$kernel,v$version,Argon2$type,$precompute,$t_cost,$m_cost,$lanes,$ns_per_hash"
+                                ret=1
+                                while [ $batch_size -gt 0 ]; do
+                                    ns_per_hash=$(./argon2-gpu-bench \
+                                        -t $type -v $version \
+                                        $precompute_flag \
+                                        -m $mode -k $kernel \
+                                        -b $batch_size -s $samples \
+                                        -T $t_cost -M $m_cost -L $lanes \
+                                        -o ns-per-hash --output-mode mean)
+                                    ret=$?
+                                    if [ $ret == 0 ]; then
+                                        break
+                                    fi
+                                    
+                                    (( batch_size /= 2 ))
+                                done
+                                
+                                if [ $ret != 0 ]; then
+                                    break
+                                fi
+                                
+                                echo "$mode,$kernel,v$version,Argon2$type,$precompute,$t_cost,$m_cost,$lanes,$ns_per_hash,$batch_size"
                             done
                         done
                     done
