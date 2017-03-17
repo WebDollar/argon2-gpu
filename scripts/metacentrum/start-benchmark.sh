@@ -59,7 +59,7 @@ for machine in $machines; do
     
     cat >$task_file <<EOF
 #!/bin/bash
-#PBS -N argon2-gpu-$machine-($branches)
+#PBS -N argon2-gpu-$machine-${branches// /:}
 #PBS -l walltime=$duration
 $spec
 #PBS -q $queue
