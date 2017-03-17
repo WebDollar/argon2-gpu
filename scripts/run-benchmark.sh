@@ -36,6 +36,8 @@ if [ -z "$precomputes" ]; then
     precomputes='no yes'
 fi
 
+MIN_BATCH_SIZE=8
+
 echo "mode,kernel,version,type,precompute,t_cost,m_cost,lanes,ns_per_hash,batch_size"
 for mode in $modes; do
     for kernel in $kernels; do
@@ -58,7 +60,7 @@ for mode in $modes; do
                                 fi
                                 
                                 ret=1
-                                while [ $batch_size -gt 0 ]; do
+                                while [ $(( $batch_size * $lanes )) -ge $MIN_BATCH_SIZE ]; do
                                     ns_per_hash=$(./argon2-gpu-bench \
                                         -t $type -v $version \
                                         $precompute_flag \
