@@ -32,14 +32,14 @@ data$nph_normalized <- data$ns_per_hash / (data$m_cost * data$t_cost)
 data$hashes_per_second <- NS_PER_SEC / data$ns_per_hash
 data$hps_normalized <- data$m_cost * data$t_cost * data$hashes_per_second
 
-make_plots_hps <- function(mode, kernel, type, precompute) {
-  data_b <- data[data$m_cost >= 4096 & data$Mode == mode & data$Kernel.mode == kernel & data$Version == 'v1.3' & data$Type == paste0('Argon2', type) & data$Precompute == precompute,]
+make_plots_commits <- function(mode, kernel, type, precompute) {
+  data_b <- data[data$Mode == mode & data$Kernel.mode == kernel & data$Version == 'v1.3' & data$Type == paste0('Argon2', type) & data$Precompute == precompute,]
   
   if (length(data_b$hashes_per_second) != c(0)) {
     data_b_f_t_cost <- data_b$t_cost %in% c(1, 2, 4, 8, 16)
     data_b_f_m_cost <- data_b$m_cost %in% c(4096, 16384, 65536, 262144, 1048576)
     
-    prefix <- paste0('plot-', bench_id, '-', mode, '-', kernel, '-argon2', type)
+    prefix <- paste0('plot-commits-', bench_id, '-', mode, '-', kernel, '-argon2', type)
     if (precompute == 'yes') {
         prefix <- paste0(prefix, '-precompute')
     }
@@ -68,10 +68,94 @@ make_plots_hps <- function(mode, kernel, type, precompute) {
   }
 }
 
+make_plots_types <- function(commit, mode, kernel) {
+  data_b <- data[data$Commit == commit & data$Mode == mode & data$Kernel.mode == kernel & data$Version == 'v1.3',]
+  if (length(data_b$hashes_per_second) != c(0)) {
+    data_b$Variant <- paste0(data_b$Type, '-', data_b$Precompute)
+    data_b_f_t_cost <- data_b$t_cost %in% c(1, 2, 4, 8, 16)
+    data_b_f_m_cost <- data_b$m_cost %in% c(4096, 16384, 65536, 262144, 1048576)
+    
+    prefix <- paste0('plot-types-', bench_id, '-', commit, '-', mode, '-', kernel)
+    save_graph(paste0(prefix, '-t_cost'),
+               ggplot(data_b[data_b_f_m_cost,], aes(x=t_cost, y=hps_normalized, group=Variant, colour=Variant)) +
+                 geom_line() +
+                 scale_y_continuous(labels=comma) +
+                 facet_grid(lanes~m_cost, labeller=label_both) +
+                 xlab('t_cost') + ylab('Hashes per second (normalized)'))
+    
+    save_graph(paste0(prefix, '-m_cost'),
+               ggplot(data_b[data_b_f_t_cost,], aes(x=m_cost, y=hps_normalized, group=Variant, colour=Variant)) +
+                 geom_line() +
+                 scale_x_log10() +
+                 scale_y_continuous(labels=comma) +
+                 facet_grid(t_cost~lanes, labeller=label_both) +
+                 xlab('m_cost (log scale)') + ylab('Hashes per second (normalized)'))
+    
+    save_graph(paste0(prefix, '-lanes'),
+               ggplot(data_b[data_b_f_t_cost & data_b_f_m_cost,], aes(x=lanes, y=hps_normalized, group=Variant, colour=Variant)) +
+                 geom_line() +
+                 scale_y_continuous(labels=comma) +
+                 facet_grid(t_cost~m_cost, labeller=label_both) +
+                 xlab('lanes') + ylab('Hashes per second (normalized)'))
+  }
+}
+
+make_plots_versions <-  function(commit, mode, kernel, type, precompute) {
+  data_b <- data[data$Commit == commit & data$Mode == mode & data$Kernel.mode == kernel & data$Type == paste0('Argon2', type) & data$Precompute == precompute,]
+  if (length(data_b$hashes_per_second) != c(0)) {
+    data_b_f_t_cost <- data_b$t_cost %in% c(1, 2, 4, 8, 16)
+    data_b_f_m_cost <- data_b$m_cost %in% c(4096, 16384, 65536, 262144, 1048576)
+    
+    prefix <- paste0('plot-versions-', bench_id, '-', commit, '-', mode, '-', kernel, '-argon2', type)
+    if (precompute == 'yes') {
+      prefix <- paste0(prefix, '-precompute')
+    }
+    save_graph(paste0(prefix, '-t_cost'),
+               ggplot(data_b[data_b_f_m_cost,], aes(x=t_cost, y=hps_normalized, group=Version, colour=Version)) +
+                 geom_line() +
+                 scale_y_continuous(labels=comma) +
+                 facet_grid(lanes~m_cost, labeller=label_both) +
+                 xlab('t_cost') + ylab('Hashes per second (normalized)'))
+    
+    save_graph(paste0(prefix, '-m_cost'),
+               ggplot(data_b[data_b_f_t_cost,], aes(x=m_cost, y=hps_normalized, group=Version, colour=Version)) +
+                 geom_line() +
+                 scale_x_log10() +
+                 scale_y_continuous(labels=comma) +
+                 facet_grid(t_cost~lanes, labeller=label_both) +
+                 xlab('m_cost (log scale)') + ylab('Hashes per second (normalized)'))
+    
+    save_graph(paste0(prefix, '-lanes'),
+               ggplot(data_b[data_b_f_t_cost & data_b_f_m_cost,], aes(x=lanes, y=hps_normalized, group=Version, colour=Version)) +
+                 geom_line() +
+                 scale_y_continuous(labels=comma) +
+                 facet_grid(t_cost~m_cost, labeller=label_both) +
+                 xlab('lanes') + ylab('Hashes per second (normalized)'))
+  }
+}
+
 for (mode in c('opencl', 'cuda')) {
   for (kernel in c('by-segment', 'oneshot')) {
-    make_plots_hps(mode, kernel, 'd', 'no')
-    make_plots_hps(mode, kernel, 'i', 'no')
-    make_plots_hps(mode, kernel, 'i', 'yes')
+    make_plots_commits(mode, kernel, 'd', 'no')
+    make_plots_commits(mode, kernel, 'i', 'no')
+    make_plots_commits(mode, kernel, 'i', 'yes')
+  }
+}
+
+for (commit in commits) {
+  for (mode in c('opencl', 'cuda')) {
+    for (kernel in c('by-segment', 'oneshot')) {
+      make_plots_types(commit, mode, kernel)
+    }
+  }
+}
+
+for (commit in commits) {
+  for (mode in c('opencl', 'cuda')) {
+    for (kernel in c('by-segment', 'oneshot')) {
+      make_plots_versions(commit, mode, kernel, 'd', 'no')
+      make_plots_versions(commit, mode, kernel, 'i', 'no')
+      make_plots_versions(commit, mode, kernel, 'i', 'yes')
+    }
   }
 }
