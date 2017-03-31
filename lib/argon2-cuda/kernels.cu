@@ -362,6 +362,31 @@ __device__ void argon2_core(
 }
 
 template<uint32_t type, uint32_t version>
+__device__ void argon2_step_precompute(
+        struct block_g *memory, struct block_g *mem_curr,
+        struct block_l *prev, struct block_l *tmp, const struct ref *refs,
+        uint32_t lanes, uint32_t segment_blocks, uint32_t lane_blocks,
+        uint32_t thread,  uint32_t lane, uint32_t pass, uint32_t slice,
+        uint32_t offset)
+{
+    uint32_t ref_index, ref_lane;
+    if (type == ARGON2_I || (type == ARGON2_ID && pass == 0 &&
+            slice < ARGON2_SYNC_POINTS / 2)) {
+        ref_index = refs->ref_index;
+        ref_lane = refs->ref_lane;
+    } else {
+        ref_index = prev->lo[0];
+        ref_lane =  prev->hi[0];
+
+        compute_ref_pos(lanes, segment_blocks, pass, lane, slice, offset,
+                        &ref_lane, &ref_index);
+    }
+
+    argon2_core<version>(memory, mem_curr, prev, tmp, lane_blocks, thread, pass,
+                         ref_index, ref_lane);
+}
+
+template<uint32_t type, uint32_t version>
 __global__ void argon2_kernel_segment_precompute(
         struct block_g *memory, const struct ref *refs,
         uint32_t passes, uint32_t lanes, uint32_t segment_blocks,
@@ -408,23 +433,11 @@ __global__ void argon2_kernel_segment_precompute(
     refs += start_offset;
 
     for (uint32_t offset = start_offset; offset < segment_blocks; ++offset) {
-        uint32_t ref_index, ref_lane;
-        if (type == ARGON2_I || (type == ARGON2_ID && pass == 0 &&
-                slice < ARGON2_SYNC_POINTS / 2)) {
-            ref_index = refs->ref_index;
-            ref_lane = refs->ref_lane;
+        argon2_step_precompute<type, version>(
+                    memory, mem_curr, prev, tmp, refs, lanes, segment_blocks,
+                    lane_blocks, thread, lane, pass, slice, offset);
 
-            ++refs;
-        } else {
-            ref_index = prev->lo[0];
-            ref_lane =  prev->hi[0];
-
-            compute_ref_pos(lanes, segment_blocks, pass, lane, slice, offset,
-                            &ref_lane, &ref_index);
-        }
-        argon2_core<version>(memory, mem_curr, prev, tmp, lane_blocks,
-                             thread, pass, ref_index, ref_lane);
-
+        ++refs;
         ++mem_curr;
     }
 }
@@ -468,23 +481,12 @@ __global__ void argon2_kernel_oneshot_precompute(
                     continue;
                 }
 
-                uint32_t ref_index, ref_lane;
-                if (type == ARGON2_I || (type == ARGON2_ID && pass == 0 &&
-                        slice < ARGON2_SYNC_POINTS / 2)) {
-                    ref_index = refs->ref_index;
-                    ref_lane = refs->ref_lane;
+                argon2_step_precompute<type, version>(
+                            memory, mem_curr, prev, tmp, refs, lanes,
+                            segment_blocks, lane_blocks, thread, lane,
+                            pass, slice, offset);
 
-                    ++refs;
-                } else {
-                    ref_index = prev->lo[0];
-                    ref_lane =  prev->hi[0];
-
-                    compute_ref_pos(lanes, segment_blocks, pass, lane, slice,
-                                    offset, &ref_lane, &ref_index);
-                }
-                argon2_core<version>(memory, mem_curr, prev, tmp, lane_blocks,
-                                     thread, pass, ref_index, ref_lane);
-
+                ++refs;
                 ++mem_curr;
             }
 
