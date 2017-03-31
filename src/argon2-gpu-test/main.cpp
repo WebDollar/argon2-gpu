@@ -72,9 +72,15 @@ std::size_t runTests(const GlobalContext &global, const Device &device,
                      Type type, Version version,
                      const TestCase *casesFrom, const TestCase *casesTo)
 {
-    std::cout << "Running tests for Argon2"
-              << (type == ARGON2_I ? "i" : "d")
-              << " v" << (version == ARGON2_VERSION_10 ? "1.0" : "1.3")
+    std::cout << "Running tests for Argon2";
+    if (type == ARGON2_I) {
+        std::cout << "i";
+    } else if (type == ARGON2_D) {
+        std::cout << "d";
+    } else if (type == ARGON2_ID) {
+        std::cout << "id";
+    }
+    std::cout << " v" << (version == ARGON2_VERSION_10 ? "1.0" : "1.3")
               << "..." << std::endl;
 
     std::size_t failures = 0;
@@ -83,7 +89,7 @@ std::size_t runTests(const GlobalContext &global, const Device &device,
         const std::array<bool, 2> precomputeOpts = { false, true };
         auto precBegin = precomputeOpts.begin();
         auto precEnd = precomputeOpts.end();
-        if (type != ARGON2_I) {
+        if (type == ARGON2_D) {
             precEnd--;
         }
         for (auto precIt = precBegin; precIt != precEnd; precIt++) {
@@ -302,6 +308,28 @@ const TestCase CASES_I_13[] = {
     },
 };
 
+const TestCase CASES_D_10[] = {
+    {
+        {
+            32,
+            "\x02\x02\x02\x02\x02\x02\x02\x02"
+            "\x02\x02\x02\x02\x02\x02\x02\x02", 16,
+            "\x03\x03\x03\x03\x03\x03\x03\x03", 8,
+            "\x04\x04\x04\x04\x04\x04\x04\x04"
+            "\x04\x04\x04\x04", 12,
+            3, 32, 4
+        },
+        "\x96\xa9\xd4\xe5\xa1\x73\x40\x92"
+        "\xc8\x5e\x29\xf4\x10\xa4\x59\x14"
+        "\xa5\xdd\x1f\x5c\xbf\x08\xb2\x67"
+        "\x0d\xa6\x8a\x02\x85\xab\xf3\x2b",
+        "\x01\x01\x01\x01\x01\x01\x01\x01"
+        "\x01\x01\x01\x01\x01\x01\x01\x01"
+        "\x01\x01\x01\x01\x01\x01\x01\x01"
+        "\x01\x01\x01\x01\x01\x01\x01\x01", 32
+    },
+};
+
 const TestCase CASES_D_13[] = {
     {
         {
@@ -317,6 +345,50 @@ const TestCase CASES_D_13[] = {
         "\x53\x71\xd3\x09\x19\x73\x42\x94"
         "\xf8\x68\xe3\xbe\x39\x84\xf3\xc1"
         "\xa1\x3a\x4d\xb9\xfa\xbe\x4a\xcb",
+        "\x01\x01\x01\x01\x01\x01\x01\x01"
+        "\x01\x01\x01\x01\x01\x01\x01\x01"
+        "\x01\x01\x01\x01\x01\x01\x01\x01"
+        "\x01\x01\x01\x01\x01\x01\x01\x01", 32
+    },
+};
+
+const TestCase CASES_ID_10[] = {
+    {
+        {
+            32,
+            "\x02\x02\x02\x02\x02\x02\x02\x02"
+            "\x02\x02\x02\x02\x02\x02\x02\x02", 16,
+            "\x03\x03\x03\x03\x03\x03\x03\x03", 8,
+            "\x04\x04\x04\x04\x04\x04\x04\x04"
+            "\x04\x04\x04\x04", 12,
+            3, 32, 4
+        },
+        "\xb6\x46\x15\xf0\x77\x89\xb6\x6b"
+        "\x64\x5b\x67\xee\x9e\xd3\xb3\x77"
+        "\xae\x35\x0b\x6b\xfc\xbb\x0f\xc9"
+        "\x51\x41\xea\x8f\x32\x26\x13\xc0",
+        "\x01\x01\x01\x01\x01\x01\x01\x01"
+        "\x01\x01\x01\x01\x01\x01\x01\x01"
+        "\x01\x01\x01\x01\x01\x01\x01\x01"
+        "\x01\x01\x01\x01\x01\x01\x01\x01", 32
+    },
+};
+
+const TestCase CASES_ID_13[] = {
+    {
+        {
+            32,
+            "\x02\x02\x02\x02\x02\x02\x02\x02"
+            "\x02\x02\x02\x02\x02\x02\x02\x02", 16,
+            "\x03\x03\x03\x03\x03\x03\x03\x03", 8,
+            "\x04\x04\x04\x04\x04\x04\x04\x04"
+            "\x04\x04\x04\x04", 12,
+            3, 32, 4
+        },
+        "\x0d\x64\x0d\xf5\x8d\x78\x76\x6c"
+        "\x08\xc0\x37\xa3\x4a\x8b\x53\xc9"
+        "\xd0\x1e\xf0\x45\x2d\x75\xb6\x5e"
+        "\xb5\x25\x20\xe9\x6b\x01\xe6\x59",
         "\x01\x01\x01\x01\x01\x01\x01\x01"
         "\x01\x01\x01\x01\x01\x01\x01\x01"
         "\x01\x01\x01\x01\x01\x01\x01\x01"
@@ -343,8 +415,17 @@ void runAllTests(std::size_t &failures)
             (global, device, ARGON2_I, ARGON2_VERSION_13,
              ARRAY_BEGIN(CASES_I_13), ARRAY_END(CASES_I_13));
     failures += runTests<Device, GlobalContext, ProgramContext, ProcessingUnit>
+            (global, device, ARGON2_D, ARGON2_VERSION_10,
+             ARRAY_BEGIN(CASES_D_10), ARRAY_END(CASES_D_10));
+    failures += runTests<Device, GlobalContext, ProgramContext, ProcessingUnit>
             (global, device, ARGON2_D, ARGON2_VERSION_13,
              ARRAY_BEGIN(CASES_D_13), ARRAY_END(CASES_D_13));
+    failures += runTests<Device, GlobalContext, ProgramContext, ProcessingUnit>
+            (global, device, ARGON2_ID, ARGON2_VERSION_10,
+             ARRAY_BEGIN(CASES_ID_10), ARRAY_END(CASES_ID_10));
+    failures += runTests<Device, GlobalContext, ProgramContext, ProcessingUnit>
+            (global, device, ARGON2_ID, ARGON2_VERSION_13,
+             ARRAY_BEGIN(CASES_ID_13), ARRAY_END(CASES_ID_13));
 }
 
 #include "argon2-opencl/processingunit.h"

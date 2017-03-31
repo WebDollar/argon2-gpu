@@ -11,8 +11,9 @@
 #include <iostream>
 #endif
 
-#define ARGON2_D 0
-#define ARGON2_I 1
+#define ARGON2_D  0
+#define ARGON2_I  1
+#define ARGON2_ID 2
 
 #define ARGON2_VERSION_10 0x10
 #define ARGON2_VERSION_13 0x13
@@ -257,7 +258,8 @@ struct shmem_precompute {
  * Refs hierarchy:
  * lanes -> passes -> slices -> blocks
  */
-__global__ void argon2i_precompute_kernel(
+template<uint32_t type>
+__global__ void argon2_precompute_kernel(
         struct ref *refs, uint32_t passes, uint32_t lanes,
         uint32_t segment_blocks)
 {
@@ -299,7 +301,7 @@ __global__ void argon2i_precompute_kernel(
         thread_input = passes;
         break;
     case 5:
-        thread_input = ARGON2_I;
+        thread_input = type;
         break;
     case 6:
         thread_input = block + 1;
@@ -359,8 +361,8 @@ __device__ void argon2_core(
     store_block(mem_curr, prev, thread);
 }
 
-template<uint32_t version>
-__global__ void argon2i_kernel_segment_precompute(
+template<uint32_t type, uint32_t version>
+__global__ void argon2_kernel_segment_precompute(
         struct block_g *memory, const struct ref *refs,
         uint32_t passes, uint32_t lanes, uint32_t segment_blocks,
         uint32_t pass, uint32_t slice)
@@ -406,16 +408,29 @@ __global__ void argon2i_kernel_segment_precompute(
     refs += start_offset;
 
     for (uint32_t offset = start_offset; offset < segment_blocks; ++offset) {
+        uint32_t ref_index, ref_lane;
+        if (type == ARGON2_I || (type == ARGON2_ID && pass == 0 &&
+                slice < ARGON2_SYNC_POINTS / 2)) {
+            ref_index = refs->ref_index;
+            ref_lane = refs->ref_lane;
+
+            ++refs;
+        } else {
+            ref_index = prev->lo[0];
+            ref_lane =  prev->hi[0];
+
+            compute_ref_pos(lanes, segment_blocks, pass, lane, slice, offset,
+                            &ref_lane, &ref_index);
+        }
         argon2_core<version>(memory, mem_curr, prev, tmp, lane_blocks,
-                             thread, pass, refs->ref_index, refs->ref_lane);
+                             thread, pass, ref_index, ref_lane);
 
         ++mem_curr;
-        ++refs;
     }
 }
 
-template<uint32_t version>
-__global__ void argon2i_kernel_oneshot_precompute(
+template<uint32_t type, uint32_t version>
+__global__ void argon2_kernel_oneshot_precompute(
         struct block_g *memory, const struct ref *refs, uint32_t passes,
         uint32_t lanes, uint32_t segment_blocks)
 {
@@ -453,12 +468,24 @@ __global__ void argon2i_kernel_oneshot_precompute(
                     continue;
                 }
 
-                argon2_core<version>(memory, mem_curr, prev, tmp,
-                                     lane_blocks, thread, pass,
-                                     refs->ref_index, refs->ref_lane);
+                uint32_t ref_index, ref_lane;
+                if (type == ARGON2_I || (type == ARGON2_ID && pass == 0 &&
+                        slice < ARGON2_SYNC_POINTS / 2)) {
+                    ref_index = refs->ref_index;
+                    ref_lane = refs->ref_lane;
+
+                    ++refs;
+                } else {
+                    ref_index = prev->lo[0];
+                    ref_lane =  prev->hi[0];
+
+                    compute_ref_pos(lanes, segment_blocks, pass, lane, slice,
+                                    offset, &ref_lane, &ref_index);
+                }
+                argon2_core<version>(memory, mem_curr, prev, tmp, lane_blocks,
+                                     thread, pass, ref_index, ref_lane);
 
                 ++mem_curr;
-                ++refs;
             }
 
             __syncthreads();
@@ -478,7 +505,8 @@ __device__ void argon2_step(
 {
     uint32_t ref_index, ref_lane;
 
-    if (type == ARGON2_I) {
+    if (type == ARGON2_I || (type == ARGON2_ID && pass == 0 &&
+            slice < ARGON2_SYNC_POINTS / 2)) {
         uint32_t addr_index = offset % ARGON2_QWORDS_IN_BLOCK;
         if (addr_index == 0) {
             if (thread == 6) {
@@ -521,14 +549,14 @@ __global__ void argon2_kernel_segment(
     /* select job's memory region: */
     memory += job_id * lanes * lane_blocks;
     /* select warp's shared memory buffer: */
-    shared += threadIdx.y * (type == ARGON2_I ? 3 : 2);
+    shared += threadIdx.y * (type == ARGON2_I || type == ARGON2_ID ? 3 : 2);
 
     uint32_t thread_input;
     struct block_l *prev = &shared[0];
     struct block_l *tmp  = &shared[1];
     struct block_l *addr;
 
-    if (type == ARGON2_I) {
+    if (type == ARGON2_I || type == ARGON2_ID) {
         addr = &shared[2];
 
         switch (thread) {
@@ -548,7 +576,7 @@ __global__ void argon2_kernel_segment(
             thread_input = passes;
             break;
         case 5:
-            thread_input = ARGON2_I;
+            thread_input = type;
             break;
         default:
             thread_input = 0;
@@ -611,14 +639,14 @@ __global__ void argon2_kernel_oneshot(
     /* select job's memory region: */
     memory += job_id * lanes * lane_blocks;
     /* select lane's shared memory buffer: */
-    shared += lane * (type == ARGON2_I ? 3 : 2);
+    shared += lane * (type == ARGON2_I || type == ARGON2_ID ? 3 : 2);
 
     struct block_l *prev = &shared[0];
     struct block_l *tmp  = &shared[1];
     struct block_l *addr;
     uint32_t thread_input;
 
-    if (type == ARGON2_I) {
+    if (type == ARGON2_I || type == ARGON2_ID) {
         addr = &shared[2];
 
         switch (thread) {
@@ -632,7 +660,7 @@ __global__ void argon2_kernel_oneshot(
             thread_input = passes;
             break;
         case 5:
-            thread_input = ARGON2_I;
+            thread_input = type;
             break;
         default:
             thread_input = 0;
@@ -673,7 +701,7 @@ __global__ void argon2_kernel_oneshot(
 
             __syncthreads();
 
-            if (type == ARGON2_I) {
+            if (type == ARGON2_I || type == ARGON2_ID) {
                 if (thread == 2) {
                     ++thread_input;
                 }
@@ -717,7 +745,7 @@ Argon2KernelRunner::Argon2KernelRunner(
     CudaException::check(cudaStreamAttachMemAsync(stream, memory));
     CudaException::check(cudaStreamSynchronize(stream));
 
-    if (type == ARGON2_I && precompute) {
+    if ((type == ARGON2_I || type == ARGON2_ID) && precompute) {
         uint32_t segments = passes * lanes * ARGON2_SYNC_POINTS;
 
         uint32_t refsSize = segments * segmentBlocks * sizeof(struct ref);
@@ -740,6 +768,7 @@ Argon2KernelRunner::Argon2KernelRunner(
 
 void Argon2KernelRunner::precomputeRefs()
 {
+    // FIXME: reduce computation for Argon2id
     struct ref *refs = (struct ref *)this->refs;
 
     uint32_t segmentAddrBlocks = (segmentBlocks + ARGON2_QWORDS_IN_BLOCK - 1)
@@ -750,8 +779,15 @@ void Argon2KernelRunner::precomputeRefs()
     dim3 threads = dim3(THREADS_PER_LANE);
 
     uint32_t shmemSize = sizeof(struct shmem_precompute);
-    argon2i_precompute_kernel<<<blocks, threads, shmemSize, stream>>>(
-            refs, passes, lanes, segmentBlocks);
+    if (type == ARGON2_I) {
+        argon2_precompute_kernel<ARGON2_I>
+            <<<blocks, threads, shmemSize, stream>>>(
+                refs, passes, lanes, segmentBlocks);
+    } else {
+        argon2_precompute_kernel<ARGON2_ID>
+            <<<blocks, threads, shmemSize, stream>>>(
+                refs, passes, lanes, segmentBlocks);
+    }
 }
 
 Argon2KernelRunner::~Argon2KernelRunner()
@@ -794,12 +830,12 @@ void Argon2KernelRunner::runKernelSegment(uint32_t lanesPerBlock,
             uint32_t shared_size = blockSize * ARGON2_BLOCK_SIZE * 2;
             struct ref *refs = (struct ref *)this->refs;
             if (version == ARGON2_VERSION_10) {
-                argon2i_kernel_segment_precompute<ARGON2_VERSION_10>
+                argon2_kernel_segment_precompute<ARGON2_I, ARGON2_VERSION_10>
                         <<<blocks, threads, shared_size, stream>>>(
                             memory_blocks, refs, passes, lanes, segmentBlocks,
                             pass, slice);
             } else {
-                argon2i_kernel_segment_precompute<ARGON2_VERSION_13>
+                argon2_kernel_segment_precompute<ARGON2_I, ARGON2_VERSION_13>
                         <<<blocks, threads, shared_size, stream>>>(
                             memory_blocks, refs, passes, lanes, segmentBlocks,
                             pass, slice);
@@ -813,6 +849,35 @@ void Argon2KernelRunner::runKernelSegment(uint32_t lanesPerBlock,
                             pass, slice);
             } else {
                 argon2_kernel_segment<ARGON2_I, ARGON2_VERSION_13>
+                        <<<blocks, threads, shared_size, stream>>>(
+                            memory_blocks, passes, lanes, segmentBlocks,
+                            pass, slice);
+            }
+        }
+    } else if (type == ARGON2_ID) {
+        if (precompute) {
+            uint32_t shared_size = blockSize * ARGON2_BLOCK_SIZE * 2;
+            struct ref *refs = (struct ref *)this->refs;
+            if (version == ARGON2_VERSION_10) {
+                argon2_kernel_segment_precompute<ARGON2_ID, ARGON2_VERSION_10>
+                        <<<blocks, threads, shared_size, stream>>>(
+                            memory_blocks, refs, passes, lanes, segmentBlocks,
+                            pass, slice);
+            } else {
+                argon2_kernel_segment_precompute<ARGON2_ID, ARGON2_VERSION_13>
+                        <<<blocks, threads, shared_size, stream>>>(
+                            memory_blocks, refs, passes, lanes, segmentBlocks,
+                            pass, slice);
+            }
+        } else {
+            uint32_t shared_size = blockSize * ARGON2_BLOCK_SIZE * 3;
+            if (version == ARGON2_VERSION_10) {
+                argon2_kernel_segment<ARGON2_ID, ARGON2_VERSION_10>
+                        <<<blocks, threads, shared_size, stream>>>(
+                            memory_blocks, passes, lanes, segmentBlocks,
+                            pass, slice);
+            } else {
+                argon2_kernel_segment<ARGON2_ID, ARGON2_VERSION_13>
                         <<<blocks, threads, shared_size, stream>>>(
                             memory_blocks, passes, lanes, segmentBlocks,
                             pass, slice);
@@ -854,11 +919,11 @@ void Argon2KernelRunner::runKernelOneshot(uint32_t lanesPerBlock,
             uint32_t shared_size = blockSize * ARGON2_BLOCK_SIZE * 2;
             struct ref *refs = (struct ref *)this->refs;
             if (version == ARGON2_VERSION_10) {
-                argon2i_kernel_oneshot_precompute<ARGON2_VERSION_10>
+                argon2_kernel_oneshot_precompute<ARGON2_I, ARGON2_VERSION_10>
                         <<<blocks, threads, shared_size, stream>>>(
                             memory_blocks, refs, passes, lanes, segmentBlocks);
             } else {
-                argon2i_kernel_oneshot_precompute<ARGON2_VERSION_13>
+                argon2_kernel_oneshot_precompute<ARGON2_I, ARGON2_VERSION_13>
                         <<<blocks, threads, shared_size, stream>>>(
                             memory_blocks, refs, passes, lanes, segmentBlocks);
             }
@@ -870,6 +935,31 @@ void Argon2KernelRunner::runKernelOneshot(uint32_t lanesPerBlock,
                             memory_blocks, passes, lanes, segmentBlocks);
             } else {
                 argon2_kernel_oneshot<ARGON2_I, ARGON2_VERSION_13>
+                        <<<blocks, threads, shared_size, stream>>>(
+                            memory_blocks, passes, lanes, segmentBlocks);
+            }
+        }
+    } else if (type == ARGON2_ID) {
+        if (precompute) {
+            uint32_t shared_size = blockSize * ARGON2_BLOCK_SIZE * 2;
+            struct ref *refs = (struct ref *)this->refs;
+            if (version == ARGON2_VERSION_10) {
+                argon2_kernel_oneshot_precompute<ARGON2_ID, ARGON2_VERSION_10>
+                        <<<blocks, threads, shared_size, stream>>>(
+                            memory_blocks, refs, passes, lanes, segmentBlocks);
+            } else {
+                argon2_kernel_oneshot_precompute<ARGON2_ID, ARGON2_VERSION_13>
+                        <<<blocks, threads, shared_size, stream>>>(
+                            memory_blocks, refs, passes, lanes, segmentBlocks);
+            }
+        } else {
+            uint32_t shared_size = blockSize * ARGON2_BLOCK_SIZE * 3;
+            if (version == ARGON2_VERSION_10) {
+                argon2_kernel_oneshot<ARGON2_ID, ARGON2_VERSION_10>
+                        <<<blocks, threads, shared_size, stream>>>(
+                            memory_blocks, passes, lanes, segmentBlocks);
+            } else {
+                argon2_kernel_oneshot<ARGON2_ID, ARGON2_VERSION_13>
                         <<<blocks, threads, shared_size, stream>>>(
                             memory_blocks, passes, lanes, segmentBlocks);
             }

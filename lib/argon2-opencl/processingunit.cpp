@@ -35,7 +35,7 @@ ProcessingUnit::ProcessingUnit(
         kernel.setArg<cl_uint>(3, params->getSegmentBlocks());
     } else {
         auto localMemSize = (std::size_t)lanes * ARGON2_BLOCK_SIZE;
-        if (programContext->getArgon2Type() == ARGON2_I) {
+        if (programContext->getArgon2Type() != ARGON2_D) {
             localMemSize *= 3;
         } else {
             localMemSize *= 2;

@@ -28,8 +28,9 @@ typedef ptrdiff_t intptr_t;
 #endif
 #endif /* __OPENCL_VERSION__ */
 
-#define ARGON2_D 0
-#define ARGON2_I 1
+#define ARGON2_D  0
+#define ARGON2_I  1
+#define ARGON2_ID 2
 
 #define ARGON2_VERSION_10 0x10
 #define ARGON2_VERSION_13 0x13
@@ -179,7 +180,7 @@ void fill_block_xor(__global const struct block_g *restrict ref_block,
 }
 #endif
 
-#if ARGON2_TYPE == ARGON2_I
+#if ARGON2_TYPE == ARGON2_I || ARGON2_TYPE == ARGON2_ID
 void next_addresses(uint thread_input,
                     __local struct block_l *restrict addr,
                     __local struct block_l *restrict tmp,
@@ -235,14 +236,12 @@ __kernel void argon2_kernel_segment(
     /* select job's memory region: */
     memory += job_id * lanes * lane_blocks;
 
-    __local struct block_l local_curr, local_prev;
+    __local struct block_l local_curr, local_prev, local_addr;
     __local struct block_l *curr = &local_curr;
     __local struct block_l *prev = &local_prev;
 
-#if ARGON2_TYPE == ARGON2_I
-    __local struct block_l local_addr;
-
     uint thread_input;
+#if ARGON2_TYPE == ARGON2_I || ARGON2_TYPE == ARGON2_ID
     switch (thread) {
     case 0:
         thread_input = pass;
@@ -260,7 +259,7 @@ __kernel void argon2_kernel_segment(
         thread_input = passes;
         break;
     case 5:
-        thread_input = ARGON2_I;
+        thread_input = ARGON2_TYPE;
         break;
     default:
         thread_input = 0;
@@ -302,24 +301,25 @@ __kernel void argon2_kernel_segment(
 
     for (uint offset = start_offset; offset < segment_blocks; ++offset) {
         uint pseudo_rand_lo, pseudo_rand_hi;
-#if ARGON2_TYPE == ARGON2_I
-        uint addr_index = offset % ARGON2_QWORDS_IN_BLOCK;
-        if (addr_index == 0) {
-            if (thread == 6) {
-                ++thread_input;
+        if (ARGON2_TYPE == ARGON2_I || (ARGON2_TYPE == ARGON2_ID && pass == 0 &&
+                                        slice < ARGON2_SYNC_POINTS / 2)) {
+            uint addr_index = offset % ARGON2_QWORDS_IN_BLOCK;
+            if (addr_index == 0) {
+                if (thread == 6) {
+                    ++thread_input;
+                }
+                next_addresses(thread_input, &local_addr, curr, thread);
             }
-            next_addresses(thread_input, &local_addr, curr, thread);
+            uint addr_index_x = addr_index % 16;
+            uint addr_index_y = addr_index / 16;
+            addr_index = addr_index_y * 16 +
+                    (addr_index_x + (addr_index_y / 2) * 4) % 16;
+            pseudo_rand_lo = local_addr.lo[addr_index];
+            pseudo_rand_hi = local_addr.hi[addr_index];
+        } else {
+            pseudo_rand_lo = prev->lo[0];
+            pseudo_rand_hi = prev->hi[0];
         }
-        uint addr_index_x = addr_index % 16;
-        uint addr_index_y = addr_index / 16;
-        addr_index = addr_index_y * 16 +
-                (addr_index_x + (addr_index_y / 2) * 4) % 16;
-        pseudo_rand_lo = local_addr.lo[addr_index];
-        pseudo_rand_hi = local_addr.hi[addr_index];
-#else
-        pseudo_rand_lo = prev->lo[0];
-        pseudo_rand_hi = prev->hi[0];
-#endif
 
         uint ref_lane = pseudo_rand_hi % lanes;
 
@@ -384,7 +384,7 @@ __kernel void argon2_kernel_segment(
     }
 }
 
-#if ARGON2_TYPE == ARGON2_I
+#if ARGON2_TYPE == ARGON2_I || ARGON2_TYPE == ARGON2_ID
 #define SHARED_BLOCKS 3
 #else
 #define SHARED_BLOCKS 2
@@ -407,10 +407,12 @@ __kernel void argon2_kernel_oneshot(
 
     __local struct block_l *restrict curr = &shared[0];
     __local struct block_l *restrict prev = &shared[1];
-#if ARGON2_TYPE == ARGON2_I
-    __local struct block_l *restrict addr = &shared[2];
-
+    __local struct block_l *restrict addr;
     uint thread_input;
+
+#if ARGON2_TYPE == ARGON2_I || ARGON2_TYPE == ARGON2_ID
+    addr = &shared[2];
+
     switch (thread) {
     case 1:
         thread_input = lane;
@@ -422,7 +424,7 @@ __kernel void argon2_kernel_oneshot(
         thread_input = passes;
         break;
     case 5:
-        thread_input = ARGON2_I;
+        thread_input = ARGON2_TYPE;
         break;
     default:
         thread_input = 0;
@@ -457,24 +459,25 @@ __kernel void argon2_kernel_oneshot(
                 }
 
                 uint pseudo_rand_lo, pseudo_rand_hi;
-#if ARGON2_TYPE == ARGON2_I
-                uint addr_index = offset % ARGON2_QWORDS_IN_BLOCK;
-                if (addr_index == 0) {
-                    if (thread == 6) {
-                        ++thread_input;
+                if (ARGON2_TYPE == ARGON2_I || (ARGON2_TYPE == ARGON2_ID &&
+                        pass == 0 && slice < ARGON2_SYNC_POINTS / 2)) {
+                    uint addr_index = offset % ARGON2_QWORDS_IN_BLOCK;
+                    if (addr_index == 0) {
+                        if (thread == 6) {
+                            ++thread_input;
+                        }
+                        next_addresses(thread_input, addr, curr, thread);
                     }
-                    next_addresses(thread_input, addr, curr, thread);
+                    uint addr_index_x = addr_index % 16;
+                    uint addr_index_y = addr_index / 16;
+                    addr_index = addr_index_y * 16 +
+                            (addr_index_x + (addr_index_y / 2) * 4) % 16;
+                    pseudo_rand_lo = addr->lo[addr_index];
+                    pseudo_rand_hi = addr->hi[addr_index];
+                } else {
+                    pseudo_rand_lo = prev->lo[0];
+                    pseudo_rand_hi = prev->hi[0];
                 }
-                uint addr_index_x = addr_index % 16;
-                uint addr_index_y = addr_index / 16;
-                addr_index = addr_index_y * 16 +
-                        (addr_index_x + (addr_index_y / 2) * 4) % 16;
-                pseudo_rand_lo = addr->lo[addr_index];
-                pseudo_rand_hi = addr->hi[addr_index];
-#else
-                pseudo_rand_lo = prev->lo[0];
-                pseudo_rand_hi = prev->hi[0];
-#endif
 
                 uint ref_lane = pseudo_rand_hi % lanes;
 
@@ -539,7 +542,7 @@ __kernel void argon2_kernel_oneshot(
             }
 
             barrier(CLK_GLOBAL_MEM_FENCE);
-#if ARGON2_TYPE == ARGON2_I
+#if ARGON2_TYPE == ARGON2_I || ARGON2_TYPE == ARGON2_ID
             if (thread == 2) {
                 ++thread_input;
             }

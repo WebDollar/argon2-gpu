@@ -13,6 +13,7 @@ enum {
 enum Type {
     ARGON2_D = 0,
     ARGON2_I = 1,
+    ARGON2_ID = 2,
 };
 
 enum Version {

@@ -60,7 +60,7 @@ static CommandLineParser<Arguments> buildCmdLineParser()
 
         new ArgumentOption<Arguments>(
             [] (Arguments &state, const std::string &type) { state.type = type; },
-            "type", 't', "Argon2 type (i|d)", "i", "TYPE"),
+            "type", 't', "Argon2 type (i|d|id)", "i", "TYPE"),
         new ArgumentOption<Arguments>(
             [] (Arguments &state, const std::string &type) { state.version = type; },
             "version", 'v', "Argon2 version (1.0|1.3)", "1.3", "VERSION"),
@@ -120,6 +120,8 @@ int main(int, const char * const *argv)
         type = argon2::ARGON2_I;
     } else if (args.type == "d") {
         type = argon2::ARGON2_D;
+    } else if (args.type == "id") {
+        type = argon2::ARGON2_ID;
     } else {
         std::cerr << argv[0] << ": Invalid Argon2 type!" << std::endl;
         return 1;
