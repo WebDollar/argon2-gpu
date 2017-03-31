@@ -29,7 +29,7 @@ if [ -z "$versions" ]; then
 fi
 
 if [ -z "$types" ]; then
-    types='i d'
+    types='i d id'
 fi
 
 if [ -z "$precomputes" ]; then
@@ -43,7 +43,7 @@ for mode in $modes; do
     for kernel in $kernels; do
         for version in $versions; do
             for type in $types; do
-                if [ $type == 'i' ]; then
+                if [ $type != 'd' ]; then
                     precomputes2="$precomputes"
                 else
                     precomputes2='no'

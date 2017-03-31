@@ -136,9 +136,16 @@ make_plots_versions <-  function(commit, mode, kernel, type, precompute) {
 
 for (mode in c('opencl', 'cuda')) {
   for (kernel in c('by-segment', 'oneshot')) {
-    make_plots_commits(mode, kernel, 'd', 'no')
-    make_plots_commits(mode, kernel, 'i', 'no')
-    make_plots_commits(mode, kernel, 'i', 'yes')
+    for (type in c('i', 'd', 'id')) {
+      if (type == 'd') {
+        precomputes <- c('no')
+      } else {
+        precomputes <- c('no', 'yes')
+      }
+      for (precompute in precomputes) {
+        make_plots_commits(mode, kernel, type, precompute)
+      }
+    }
   }
 }
 
@@ -153,9 +160,16 @@ for (commit in commits) {
 for (commit in commits) {
   for (mode in c('opencl', 'cuda')) {
     for (kernel in c('by-segment', 'oneshot')) {
-      make_plots_versions(commit, mode, kernel, 'd', 'no')
-      make_plots_versions(commit, mode, kernel, 'i', 'no')
-      make_plots_versions(commit, mode, kernel, 'i', 'yes')
+      for (type in c('i', 'd', 'id')) {
+        if (type == 'd') {
+          precomputes <- c('no')
+        } else {
+          precomputes <- c('no', 'yes')
+        }
+        for (precompute in precomputes) {
+          make_plots_versions(commit, mode, kernel, type, precompute)
+        }
+      }
     }
   }
 }
