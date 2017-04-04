@@ -50,7 +50,7 @@ for mode in $modes; do
                 fi
                 for precompute in $precomputes2; do
                     for t_cost in 1 2 4 6 8; do
-                        for (( lanes = 1; lanes <= 8; lanes *= 2 )); do
+                        for (( lanes = 1; lanes <= 32; lanes *= 2 )); do
                             batch_size=$max_batch_size
                             for (( m_cost = 64; ; m_cost *= 2 )); do
                                 if [ $precompute == 'yes' ]; then
