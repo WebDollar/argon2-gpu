@@ -14,7 +14,7 @@ struct Arguments
     bool showHelp = false;
     bool listDevices = false;
 
-    std::string mode = "opencl";
+    std::string mode = "cuda";
 
     std::size_t deviceIndex = 0;
 
@@ -44,7 +44,7 @@ static CommandLineParser<Arguments> buildCmdLineParser()
 
         new ArgumentOption<Arguments>(
             [] (Arguments &state, const std::string &mode) { state.mode = mode; },
-            "mode", 'm', "mode in which to run ('opencl' for OpenCL, 'cuda' for CUDA, or 'cpu' for CPU)", "opencl", "MODE"),
+            "mode", 'm', "mode in which to run ('cuda' for CUDA, 'opencl' for OpenCL, or 'cpu' for CPU)", "cuda", "MODE"),
 
         new ArgumentOption<Arguments>(
             makeNumericHandler<Arguments, std::size_t>([] (Arguments &state, std::size_t index) {
