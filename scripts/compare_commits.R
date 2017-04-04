@@ -134,6 +134,41 @@ make_plots_versions <-  function(commit, mode, kernel, type, precompute) {
   }
 }
 
+make_plots_kernels <-  function(commit, mode, version, type, precompute) {
+  data_b <- data[data$Commit == commit & data$Mode == mode & data$Version == paste0('v', version) & data$Type == paste0('Argon2', type) & data$Precompute == precompute,]
+  if (length(data_b$hashes_per_second) != c(0)) {
+    data_b_f_t_cost <- data_b$t_cost %in% c(1, 2, 4, 8, 16)
+    data_b_f_m_cost <- data_b$m_cost %in% c(4096, 16384, 65536, 262144, 1048576)
+    
+    prefix <- paste0('plot-kernels-', bench_id, '-', commit, '-', mode, '-v', version, '-argon2', type)
+    if (precompute == 'yes') {
+      prefix <- paste0(prefix, '-precompute')
+    }
+    save_graph(paste0(prefix, '-t_cost'),
+               ggplot(data_b[data_b_f_m_cost,], aes(x=t_cost, y=hps_normalized, group=Kernel.mode, colour=Kernel.mode)) +
+                 geom_line() +
+                 scale_y_continuous(labels=comma) +
+                 facet_grid(lanes~m_cost, labeller=label_both) +
+                 xlab('t_cost') + ylab('Hashes per second (normalized)'))
+    
+    save_graph(paste0(prefix, '-m_cost'),
+               ggplot(data_b[data_b_f_t_cost,], aes(x=m_cost, y=hps_normalized, group=Kernel.mode, colour=Kernel.mode)) +
+                 geom_line() +
+                 scale_x_log10() +
+                 scale_y_continuous(labels=comma) +
+                 facet_grid(t_cost~lanes, labeller=label_both) +
+                 xlab('m_cost (log scale)') + ylab('Hashes per second (normalized)'))
+    
+    save_graph(paste0(prefix, '-lanes'),
+               ggplot(data_b[data_b_f_t_cost & data_b_f_m_cost,], aes(x=lanes, y=hps_normalized, group=Kernel.mode, colour=Kernel.mode)) +
+                 geom_line() +
+                 scale_y_continuous(labels=comma) +
+                 facet_grid(t_cost~m_cost, labeller=label_both) +
+                 xlab('lanes') + ylab('Hashes per second (normalized)'))
+  }
+}
+
+# Compare commits:
 for (mode in c('opencl', 'cuda')) {
   for (kernel in c('by-segment', 'oneshot')) {
     for (type in c('i', 'd', 'id')) {
@@ -149,6 +184,7 @@ for (mode in c('opencl', 'cuda')) {
   }
 }
 
+# Compare types:
 for (commit in commits) {
   for (mode in c('opencl', 'cuda')) {
     for (kernel in c('by-segment', 'oneshot')) {
@@ -157,6 +193,7 @@ for (commit in commits) {
   }
 }
 
+# Compare versions:
 for (commit in commits) {
   for (mode in c('opencl', 'cuda')) {
     for (kernel in c('by-segment', 'oneshot')) {
@@ -168,6 +205,24 @@ for (commit in commits) {
         }
         for (precompute in precomputes) {
           make_plots_versions(commit, mode, kernel, type, precompute)
+        }
+      }
+    }
+  }
+}
+
+# Compare kernel types:
+for (commit in commits) {
+  for (mode in c('opencl', 'cuda')) {
+    for (version in c('1.0', '1.3')) {
+      for (type in c('i', 'd', 'id')) {
+        if (type == 'd') {
+          precomputes <- c('no')
+        } else {
+          precomputes <- c('no', 'yes')
+        }
+        for (precompute in precomputes) {
+          make_plots_kernels(commit, mode, version, type, precompute)
         }
       }
     }
