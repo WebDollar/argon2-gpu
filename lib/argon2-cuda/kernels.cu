@@ -272,11 +272,18 @@ __global__ void argon2_precompute_kernel(
     uint32_t block = block_id % segment_addr_blocks;
     uint32_t segment = block_id / segment_addr_blocks;
 
-    uint32_t slice = segment % ARGON2_SYNC_POINTS;
-    uint32_t pass_id = segment / ARGON2_SYNC_POINTS;
+    uint32_t slice, pass, pass_id, lane;
+    if (type == ARGON2_ID) {
+        slice = segment % (ARGON2_SYNC_POINTS / 2);
+        lane = segment / (ARGON2_SYNC_POINTS / 2);
+        pass_id = pass = 0;
+    } else {
+        slice = segment % ARGON2_SYNC_POINTS;
+        pass_id = segment / ARGON2_SYNC_POINTS;
 
-    uint32_t pass = pass_id % passes;
-    uint32_t lane = pass_id / passes;
+        pass = pass_id % passes;
+        lane = pass_id / passes;
+    }
 
     extern __shared__ struct shmem_precompute shared_mem2[];
 
@@ -364,7 +371,7 @@ __device__ void argon2_core(
 template<uint32_t type, uint32_t version>
 __device__ void argon2_step_precompute(
         struct block_g *memory, struct block_g *mem_curr,
-        struct block_l *prev, struct block_l *tmp, const struct ref *refs,
+        struct block_l *prev, struct block_l *tmp, const struct ref **refs,
         uint32_t lanes, uint32_t segment_blocks, uint32_t lane_blocks,
         uint32_t thread,  uint32_t lane, uint32_t pass, uint32_t slice,
         uint32_t offset)
@@ -372,8 +379,9 @@ __device__ void argon2_step_precompute(
     uint32_t ref_index, ref_lane;
     if (type == ARGON2_I || (type == ARGON2_ID && pass == 0 &&
             slice < ARGON2_SYNC_POINTS / 2)) {
-        ref_index = refs->ref_index;
-        ref_lane = refs->ref_lane;
+        ref_index = (*refs)->ref_index;
+        ref_lane = (*refs)->ref_lane;
+        (*refs)++;
     } else {
         ref_index = prev->lo[0];
         ref_lane =  prev->hi[0];
@@ -429,15 +437,21 @@ __global__ void argon2_kernel_segment_precompute(
 
     load_block(prev, mem_prev, thread);
 
-    refs += (lane * passes + pass) * lane_blocks + slice * segment_blocks;
-    refs += start_offset;
+    if (type == ARGON2_ID) {
+        if (pass == 0 && slice < ARGON2_SYNC_POINTS / 2) {
+            refs += lane * (lane_blocks / 2) + slice * segment_blocks;
+            refs += start_offset;
+        }
+    } else {
+        refs += (lane * passes + pass) * lane_blocks + slice * segment_blocks;
+        refs += start_offset;
+    }
 
     for (uint32_t offset = start_offset; offset < segment_blocks; ++offset) {
         argon2_step_precompute<type, version>(
-                    memory, mem_curr, prev, tmp, refs, lanes, segment_blocks,
+                    memory, mem_curr, prev, tmp, &refs, lanes, segment_blocks,
                     lane_blocks, thread, lane, pass, slice, offset);
 
-        ++refs;
         ++mem_curr;
     }
 }
@@ -470,7 +484,11 @@ __global__ void argon2_kernel_oneshot_precompute(
 
     load_block(prev, mem_prev, thread);
 
-    refs += lane * passes * lane_blocks + 2;
+    if (type == ARGON2_ID) {
+        refs += lane * (lane_blocks / 2) + 2;
+    } else {
+        refs += lane * passes * lane_blocks + 2;
+    }
 
     uint32_t skip = 2;
     for (uint32_t pass = 0; pass < passes; ++pass) {
@@ -482,11 +500,10 @@ __global__ void argon2_kernel_oneshot_precompute(
                 }
 
                 argon2_step_precompute<type, version>(
-                            memory, mem_curr, prev, tmp, refs, lanes,
+                            memory, mem_curr, prev, tmp, &refs, lanes,
                             segment_blocks, lane_blocks, thread, lane,
                             pass, slice, offset);
 
-                ++refs;
                 ++mem_curr;
             }
 
@@ -770,12 +787,14 @@ Argon2KernelRunner::Argon2KernelRunner(
 
 void Argon2KernelRunner::precomputeRefs()
 {
-    // FIXME: reduce computation for Argon2id
     struct ref *refs = (struct ref *)this->refs;
 
     uint32_t segmentAddrBlocks = (segmentBlocks + ARGON2_QWORDS_IN_BLOCK - 1)
             / ARGON2_QWORDS_IN_BLOCK;
-    uint32_t segments = passes * lanes * ARGON2_SYNC_POINTS;
+    uint32_t segments =
+            type == ARGON2_ID
+            ? lanes * (ARGON2_SYNC_POINTS / 2)
+            : passes * lanes * ARGON2_SYNC_POINTS;
 
     dim3 blocks = dim3(1, segments * segmentAddrBlocks);
     dim3 threads = dim3(THREADS_PER_LANE);
