@@ -60,7 +60,7 @@ for mode in $modes; do
                                 fi
                                 
                                 ret=1
-                                while [ $(( $m_cost / $batch_size * $lanes )) -le $MAX_WORK ]; do
+                                while [ $batch_size -eq 0 ] || [ $(( $m_cost / $batch_size * $lanes )) -le $MAX_WORK ]; do
                                     ns_per_hash=$(./argon2-gpu-bench \
                                         -t $type -v $version \
                                         $precompute_flag \
@@ -69,14 +69,14 @@ for mode in $modes; do
                                         -T $t_cost -M $m_cost -L $lanes \
                                         -o ns-per-hash --output-mode mean)
                                     ret=$?
-                                    if [ $ret == 0 ]; then
+                                    if [ $ret -eq 0 ]; then
                                         break
                                     fi
                                     
                                     (( batch_size /= 2 ))
                                 done
                                 
-                                if [ $ret != 0 ]; then
+                                if [ $ret -ne 0 ]; then
                                     break
                                 fi
                                 
