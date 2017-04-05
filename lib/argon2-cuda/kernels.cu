@@ -765,7 +765,10 @@ Argon2KernelRunner::Argon2KernelRunner(
     CudaException::check(cudaStreamSynchronize(stream));
 
     if ((type == ARGON2_I || type == ARGON2_ID) && precompute) {
-        uint32_t segments = passes * lanes * ARGON2_SYNC_POINTS;
+        uint32_t segments =
+                type == ARGON2_ID
+                ? lanes * (ARGON2_SYNC_POINTS / 2)
+                : passes * lanes * ARGON2_SYNC_POINTS;
 
         uint32_t refsSize = segments * segmentBlocks * sizeof(struct ref);
 
