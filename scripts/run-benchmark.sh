@@ -60,7 +60,7 @@ for mode in $modes; do
                                 fi
                                 
                                 ret=1
-                                while [ $batch_size -eq 0 ] || [ $(( $m_cost / $batch_size * $lanes )) -le $MAX_WORK ]; do
+                                while [ $batch_size -ne 0 ] && [ $(( $m_cost / $batch_size * $lanes )) -le $MAX_WORK ]; do
                                     ns_per_hash=$(./argon2-gpu-bench \
                                         -t $type -v $version \
                                         $precompute_flag \
