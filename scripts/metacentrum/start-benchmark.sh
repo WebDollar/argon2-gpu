@@ -83,13 +83,13 @@ git clone "$REPO_URL" argon2-gpu || exit 1
 
 cd argon2-gpu || exit 1
 
-(cmake . && make) || exit 1
+(cmake . && make) 1>../build.log 2>&1 || exit 1
 
 if [ "$run_tests" == "yes" ]; then
     ./argon2-gpu-test 1>../tests.out 2>../tests.err
 fi
 
-bash scripts/benchmark-commits.sh "$machine" . .. "$max_batch_size" "$samples" '' '' '' '' '' $branches
+bash scripts/benchmark-commits.sh "$machine" . .. "$max_batch_size" "$samples" '' '' '' '' '' $branches 1>../bench.log 2>&1
 EOF
 
     "$qsub" "$task_file"
