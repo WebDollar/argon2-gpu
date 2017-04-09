@@ -56,7 +56,7 @@ for mode in $modes; do
                                 (( batch_size /= $lanes ))
                             fi
                             
-                            for (( m_cost = 64; ; m_cost *= 2 )); do
+                            for (( m_cost = $((8 * $lanes)); ; m_cost *= 2 )); do
                                 if [ $precompute == 'yes' ]; then
                                     precompute_flag='-p'
                                 else
