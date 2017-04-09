@@ -44,8 +44,8 @@ fi
 shift 7
 
 for commit in $@; do
-    (cd "$src_dir" && git rev-parse --verify "$commit") >"$dst_dir/hash-$bench_id-$commit.txt" || exit 1
     (cd "$src_dir" && git checkout "$commit") || exit 1
+    (cd "$src_dir" && git rev-parse --verify HEAD) >"$dst_dir/hash-$bench_id-$commit.txt" || exit 1
     
     make || exit 1
     
