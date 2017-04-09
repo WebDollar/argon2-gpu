@@ -9,7 +9,7 @@ types="$6"
 precomputes="$7"
 
 if [ -z "$max_batch_size" ]; then
-    max_batch_size=64
+    max_batch_size=1024
 fi
 
 if [ -z "$samples" ]; then
@@ -52,6 +52,10 @@ for mode in $modes; do
                     for t_cost in 1 2 4 6 8; do
                         for (( lanes = 1; lanes <= 32; lanes *= 2 )); do
                             batch_size=$max_batch_size
+                            if [ $batch_size -ge $lanes ]; then
+                                (( batch_size /= $lanes ))
+                            fi
+                            
                             for (( m_cost = 64; ; m_cost *= 2 )); do
                                 if [ $precompute == 'yes' ]; then
                                     precompute_flag='-p'
