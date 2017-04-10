@@ -23,7 +23,13 @@ ProcessingUnit::ProcessingUnit(
       bestLanesPerBlock(runner.getMinLanesPerBlock()),
       bestJobsPerBlock(runner.getMinJobsPerBlock())
 {
-    CudaException::check(cudaSetDevice(device->getDeviceIndex()));
+    /* Calling cudaSetDevice too often may cause lock-ups under certain
+     * conditions, so let's call it only when really necessary: */
+    int deviceIndex = -1;
+    CudaException::check(cudaGetDevice(&deviceIndex));
+    if (deviceIndex != device->getDeviceIndex()) {
+        CudaException::check(cudaSetDevice(device->getDeviceIndex()));
+    }
 
     auto memory = static_cast<std::uint8_t *>(runner.getMemory());
 
