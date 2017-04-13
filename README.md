@@ -22,7 +22,7 @@ The CUDA implementation can reach about 40-60 GiB/s (divide by time cost * memor
 
 The CUDA implementation has three variants, which are currently implemented in separate branches:
 
- * `master` -- uses only shared memory operations; is much slower than other two
+ * `master` -- uses only shared memory operations; is much slower than the other two
  * `warp-shuffle` -- uses warp shuffle instructions; doesn't use shared memory at all
  * `warp-shuffle-shared` -- like `warp-shuffle`, but uses less regsters (compensated by using shared memory); this one is about as fast as `warp-shuffle`, but can be a little slower or faster in some edge cases
 
