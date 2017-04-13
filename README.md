@@ -16,7 +16,7 @@ Argon2-gpu supports all Argon2 variants (Argon2i, Argon2d, and Argon2id) and ver
 
 ## Performance
 
-The CUDA implementation can reach about 40-60 GiB/s (divide by time cost * memory cost to get hashes per second) on an NVIDIA Tesla K20X. For comparison, a fast Intel Xeon processor can only reach about 10 GiB/s.
+The CUDA implementation can reach about 40-60 GiB/s (divide by time cost * memory cost  * 1024 B to get hashes per second) on an NVIDIA Tesla K20X. For comparison, a fast Intel Xeon processor can only reach about 10 GiB/s.
 
 ## CUDA kernel variants
 
