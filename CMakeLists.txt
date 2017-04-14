@@ -70,7 +70,10 @@ target_link_libraries(argon2-opencl
     argon2-gpu-common -lOpenCL
 )
 
-add_executable(argon2-gpu-test src/argon2-gpu-test/main.cpp)
+add_executable(argon2-gpu-test
+    src/argon2-gpu-test/main.cpp
+    src/argon2-gpu-test/testcase.cpp
+)
 target_include_directories(argon2-gpu-test PRIVATE src/argon2-gpu-test)
 target_link_libraries(argon2-gpu-test
     argon2-cuda argon2-opencl -lOpenCL
