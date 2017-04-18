@@ -36,7 +36,7 @@ if [ -z "$precomputes" ]; then
     precomputes='no yes'
 fi
 
-MAX_WORK=32768
+MAX_WORK=$((16 * 1024))
 
 echo "mode,kernel,version,type,precompute,t_cost,m_cost,lanes,ns_per_hash,batch_size"
 for mode in $modes; do
@@ -64,7 +64,7 @@ for mode in $modes; do
                                 fi
                                 
                                 ret=1
-                                while [ $batch_size -ne 0 ] && [ $(( $m_cost / $batch_size * $lanes )) -le $MAX_WORK ]; do
+                                while [ $batch_size -ne 0 ] && [ $(( $m_cost / ($batch_size * $lanes) )) -le $MAX_WORK ]; do
                                     ns_per_hash=$(./argon2-gpu-bench \
                                         -t $type -v $version \
                                         $precompute_flag \
