@@ -49,11 +49,11 @@ qsub_old="$(which qsub)"
 module add pbspro-client
 
 for machine in $machines; do
-    spec="#PBS -l nodes=1:ppn=1:gpu=1:mem=16gb:cl_$machine"
+    spec="#PBS -l nodes=1:ppn=1:gpu=1:mem=4gb:cl_$machine"
     qsub=qsub
     case "$machine" in pro:*)
         machine="${machine#pro:}"
-        spec="#PBS -l select=1:ncpus=1:ngpus=1:mem=16gb:cl_$machine=True"
+        spec="#PBS -l select=1:ncpus=1:ngpus=1:mem=4gb:cl_$machine=True"
         qsub="$qsub_old"
     esac
     
