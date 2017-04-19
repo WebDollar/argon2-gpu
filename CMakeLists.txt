@@ -14,6 +14,8 @@ set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};
     -std=c++11;-O3;--ptxas-options=-v;-arch sm_30;-lineinfo
 )
 
+add_subdirectory(ext/argon2)
+
 add_library(argon2-gpu-common SHARED
     lib/argon2-gpu-common/argon2params.cpp
     lib/argon2-gpu-common/blake2b.cpp
@@ -80,6 +82,7 @@ target_link_libraries(argon2-gpu-test
 )
 
 add_executable(argon2-gpu-bench
+    src/argon2-gpu-bench/cpuexecutive.cpp
     src/argon2-gpu-bench/cudaexecutive.cpp
     src/argon2-gpu-bench/openclexecutive.cpp
     src/argon2-gpu-bench/benchmark.cpp
@@ -87,7 +90,7 @@ add_executable(argon2-gpu-bench
 )
 target_include_directories(argon2-gpu-bench PRIVATE src/argon2-gpu-bench)
 target_link_libraries(argon2-gpu-bench
-    argon2-cuda argon2-opencl -lOpenCL
+    argon2-cuda argon2-opencl argon2 -lOpenCL
 )
 
 add_test(test argon2-gpu-test)

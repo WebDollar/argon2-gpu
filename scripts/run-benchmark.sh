@@ -17,7 +17,7 @@ if [ -z "$samples" ]; then
 fi
 
 if [ -z "$modes" ]; then
-    modes='opencl cuda'
+    modes='cpu opencl cuda'
 fi
 
 if [ -z "$kernels" ]; then
@@ -40,10 +40,15 @@ MAX_WORK=$((16 * 1024))
 
 echo "mode,kernel,version,type,precompute,t_cost,m_cost,lanes,ns_per_hash,batch_size"
 for mode in $modes; do
-    for kernel in $kernels; do
+    if [ $mode != 'cpu' ]; then
+        kernels2="$kernels"
+    else
+        kernels2='by-segment'
+    fi
+    for kernel in $kernels2; do
         for version in $versions; do
             for type in $types; do
-                if [ $type != 'd' ]; then
+                if [ $mode != 'cpu' ] && [ $type != 'd' ]; then
                     precomputes2="$precomputes"
                 else
                     precomputes2='no'

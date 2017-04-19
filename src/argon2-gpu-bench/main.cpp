@@ -4,6 +4,7 @@
 #include "benchmark.h"
 #include "openclexecutive.h"
 #include "cudaexecutive.h"
+#include "cpuexecutive.h"
 
 #include <iostream>
 
@@ -158,8 +159,8 @@ int main(int, const char * const *argv)
         CudaExecutive exec(args.deviceIndex, args.listDevices);
         return exec.runBenchmark(director);
     } else if (args.mode == "cpu") {
-        std::cerr << argv[0] << ": CPU mode not yet supported!" << std::endl;
-        return 1;
+        CpuExecutive exec(args.deviceIndex, args.listDevices);
+        return exec.runBenchmark(director);
     } else {
         std::cerr << argv[0] << ": invalid mode: " << args.mode << std::endl;
         return 1;

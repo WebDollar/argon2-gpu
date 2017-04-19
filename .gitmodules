@@ -1,0 +1,3 @@
+[submodule "argon2-lib"]
+	path = ext/argon2
+	url = https://github.com/WOnder93/argon2.git
