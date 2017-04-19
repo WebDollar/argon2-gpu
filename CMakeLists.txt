@@ -95,16 +95,28 @@ target_link_libraries(argon2-gpu-bench
 
 add_test(test argon2-gpu-test)
 
-install(TARGETS argon2-opencl DESTINATION ${LIBRARY_INSTALL_DIR})
+install(
+    TARGETS argon2-gpu-common argon2-opencl argon2-cuda
+    DESTINATION ${LIBRARY_INSTALL_DIR}
+)
 install(FILES
+    include/argon2-gpu-common/argon2-common.h
+    include/argon2-gpu-common/argon2params.h
     include/argon2-opencl/cl.hpp
     include/argon2-opencl/opencl.h
-    include/argon2-opencl/argon2-common.h
-    include/argon2-opencl/argon2params.h
     include/argon2-opencl/device.h
     include/argon2-opencl/globalcontext.h
     include/argon2-opencl/programcontext.h
     include/argon2-opencl/processingunit.h
+    include/argon2-cuda/cudaexception.h
+    include/argon2-cuda/kernels.h
+    include/argon2-cuda/device.h
+    include/argon2-cuda/globalcontext.h
+    include/argon2-cuda/programcontext.h
+    include/argon2-cuda/processingunit.h
     DESTINATION ${INCLUDE_INSTALL_DIR}
 )
-install(TARGETS argon2-gpu-bench argon2-gpu-test DESTINATION ${BINARY_INSTALL_DIR})
+install(
+    TARGETS argon2-gpu-bench argon2-gpu-test
+    DESTINATION ${BINARY_INSTALL_DIR}
+)
