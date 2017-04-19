@@ -75,7 +75,7 @@ git clone --recursive "$REPO_URL" argon2-gpu || exit 1
 
 cd argon2-gpu || exit 1
 
-(cmake . && make) 1>../build.log 2>&1 || exit 1
+(cmake -DCMAKE_BUILD_TYPE=Release . && make) 1>../build.log 2>&1 || exit 1
 
 bash scripts/benchmark-commits.sh "cpu-$machine" . .. $((2*$ncpus)) "$samples" cpu '' '' '' '' $branches 1>../bench.log 2>&1
 EOF

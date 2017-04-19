@@ -83,7 +83,7 @@ git clone --recursive "$REPO_URL" argon2-gpu || exit 1
 
 cd argon2-gpu || exit 1
 
-(cmake . && make) 1>../build.log 2>&1 || exit 1
+(cmake -DCMAKE_BUILD_TYPE=Release . && make) 1>../build.log 2>&1 || exit 1
 
 if [ "$run_tests" == "yes" ]; then
     ./argon2-gpu-test 1>../tests.out 2>../tests.err
