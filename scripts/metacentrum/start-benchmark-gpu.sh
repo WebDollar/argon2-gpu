@@ -62,7 +62,7 @@ for machine in $machines; do
 #PBS -N argon2-gpu-$machine-${branches// /:}
 #PBS -l walltime=$duration
 $spec
-#PBS -q $queue
+$(if [ -n "$queue" ]; then echo -n "#PBS -q $queue"; fi)
 
 module add cmake-3.6.1
 module add cuda-8.0
@@ -79,7 +79,7 @@ git clone 'https://github.com/KhronosGroup/OpenCL-Headers.git' include/CL || exi
 export C_INCLUDE_PATH="\$C_INCLUDE_PATH:\$(readlink -f include)"
 export CPLUS_INCLUDE_PATH="\$CPLUS_INCLUDE_PATH:\$(readlink -f include)"
 
-git clone "$REPO_URL" argon2-gpu || exit 1
+git clone --recursive "$REPO_URL" argon2-gpu || exit 1
 
 cd argon2-gpu || exit 1
 
@@ -89,7 +89,7 @@ if [ "$run_tests" == "yes" ]; then
     ./argon2-gpu-test 1>../tests.out 2>../tests.err
 fi
 
-bash scripts/benchmark-commits.sh "$machine" . .. "$max_batch_size" "$samples" '' '' '' '' '' $branches 1>../bench.log 2>&1
+bash scripts/benchmark-commits.sh "gpu-$machine" . .. "$max_batch_size" "$samples" cuda '' '' '' '' $branches 1>../bench.log 2>&1
 EOF
 
     "$qsub" "$task_file"
