@@ -3,10 +3,9 @@
 machines="$1"
 branches="$2"
 ncpus="$3"
-max_batch_size="$4"
-samples="$5"
-duration="$6"
-queue="$7"
+samples="$4"
+duration="$5"
+queue="$6"
 
 if [ -z "$machines" ]; then
     echo "ERROR: Machines must be specified!" 1>&2
@@ -21,10 +20,6 @@ fi
 if [ -z "$ncpus" ]; then
     echo "ERROR: Number of CPU cores must be specified!" 1>&2
     exit 1
-fi
-
-if [ -z "$max_batch_size" ]; then
-    max_batch_size=32
 fi
 
 if [ -z "$samples" ]; then
@@ -82,7 +77,7 @@ cd argon2-gpu || exit 1
 
 (cmake . && make) 1>../build.log 2>&1 || exit 1
 
-bash scripts/benchmark-commits.sh "cpu-$machine" . .. "$max_batch_size" "$samples" cpu '' '' '' '' $branches 1>../bench.log 2>&1
+bash scripts/benchmark-commits.sh "cpu-$machine" . .. $((2*$ncpus)) "$samples" cpu '' '' '' '' $branches 1>../bench.log 2>&1
 EOF
 
     "$qsub" "$task_file"
