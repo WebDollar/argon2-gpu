@@ -1,11 +1,11 @@
 #include "cpuexecutive.h"
 
 #include "argon2.h"
-#include "argon2-opt.h"
 
 #include <thread>
 #include <mutex>
 #include <future>
+#include <vector>
 #include <iostream>
 
 static constexpr std::size_t HASH_LENGTH = 32;
@@ -27,6 +27,12 @@ private:
         auto out = std::unique_ptr<std::uint8_t[]>(
                     new std::uint8_t[HASH_LENGTH]);
 
+#ifdef ARGON2_PREALLOCATED_MEMORY
+        std::size_t memorySize = argon2_memory_size(director.getMemoryCost(),
+                                                    director.getLanes());
+        auto memory = std::unique_ptr<std::uint8_t[]>(
+                    new std::uint8_t[memorySize]);
+#endif
         for (;;) {
             const void *pw;
             std::size_t pwSize;
@@ -79,7 +85,11 @@ private:
                             argon2_error_message(ARGON2_INCORRECT_TYPE));
             }
 
+#ifdef ARGON2_PREALLOCATED_MEMORY
+            int err = argon2_ctx_mem(&ctx, type, memory.get(), memorySize);
+#else
             int err = argon2_ctx(&ctx, type);
+#endif
             if (err) {
                 throw std::runtime_error(argon2_error_message(err));
             }
@@ -161,7 +171,9 @@ int CpuExecutive::runBenchmark(const BenchmarkDirector &director) const
         return 1;
     }
 
+#ifdef ARGON2_SELECTABLE_IMPL
     argon2_select_impl(director.isVerbose() ? stderr : nullptr, "[libargon2] ");
+#endif
 
     CpuRunner runner;
     return director.runBenchmark(runner);
