@@ -59,6 +59,8 @@ for mode in $modes; do
                             batch_size=$max_batch_size
                             if [ $batch_size -ge $lanes ]; then
                                 (( batch_size /= $lanes ))
+                            else
+                                batch_size=1
                             fi
                             
                             for (( m_cost = $((8 * $lanes)); ; m_cost *= 2 )); do
