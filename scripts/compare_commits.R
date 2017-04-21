@@ -169,7 +169,7 @@ make_plots_kernels <-  function(commit, mode, version, type, precompute) {
 }
 
 # Compare commits:
-for (mode in c('opencl', 'cuda')) {
+for (mode in c('opencl', 'cuda', 'cpu')) {
   for (kernel in c('by-segment', 'oneshot')) {
     for (type in c('i', 'd', 'id')) {
       if (type == 'd') {
@@ -186,7 +186,7 @@ for (mode in c('opencl', 'cuda')) {
 
 # Compare types:
 for (commit in commits) {
-  for (mode in c('opencl', 'cuda')) {
+  for (mode in c('opencl', 'cuda', 'cpu')) {
     for (kernel in c('by-segment', 'oneshot')) {
       make_plots_types(commit, mode, kernel)
     }
@@ -195,7 +195,7 @@ for (commit in commits) {
 
 # Compare versions:
 for (commit in commits) {
-  for (mode in c('opencl', 'cuda')) {
+  for (mode in c('opencl', 'cuda', 'cpu')) {
     for (kernel in c('by-segment', 'oneshot')) {
       for (type in c('i', 'd', 'id')) {
         if (type == 'd') {
@@ -213,7 +213,7 @@ for (commit in commits) {
 
 # Compare kernel types:
 for (commit in commits) {
-  for (mode in c('opencl', 'cuda')) {
+  for (mode in c('opencl', 'cuda', 'cpu')) {
     for (version in c('1.0', '1.3')) {
       for (type in c('i', 'd', 'id')) {
         if (type == 'd') {
