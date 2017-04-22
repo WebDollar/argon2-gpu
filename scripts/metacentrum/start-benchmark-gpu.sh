@@ -1,13 +1,13 @@
 #!/bin/bash
 
-machines="$1"
-machine_spec="$3"
-branches="$4"
-max_batch_size="$5"
-samples="$6"
-duration="$7"
-queue="$8"
-run_tests="$9"
+machine="$1"
+machine_spec="$2"
+branches="$3"
+max_batch_size="$4"
+samples="$5"
+duration="$6"
+queue="$7"
+run_tests="$8"
 
 if [ -z "$machine" ]; then
     echo "ERROR: Machine must be specified!" 1>&2
