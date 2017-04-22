@@ -1,14 +1,20 @@
 #!/bin/bash
 
-machines="$1"
-branches="$2"
-ncpus="$3"
-samples="$4"
-duration="$5"
-queue="$6"
+machine="$1"
+machine_spec="$2"
+branches="$3"
+ncpus="$4"
+samples="$5"
+duration="$6"
+queue="$7"
 
-if [ -z "$machines" ]; then
-    echo "ERROR: Machines must be specified!" 1>&2
+if [ -z "$machine" ]; then
+    echo "ERROR: Machine must be specified!" 1>&2
+    exit 1
+fi
+
+if [ -z "$machine_spec" ]; then
+    echo "ERROR: Machine spec must be specified!" 1>&2
     exit 1
 fi
 
@@ -36,24 +42,26 @@ dest_dir="$(pwd)"
 
 task_file="$(mktemp)"
 
-qsub_old="$(which qsub)"
-
 module add pbspro-client
 
-for machine in $machines; do
-    spec="#PBS -l nodes=1:ppn=$ncpus:mem=32gb:cl_$machine"
-    qsub=qsub
-    case "$machine" in pro:*)
-        machine="${machine#pro:}"
-        spec="#PBS -l select=1:ncpus=$ncpus:mem=32gb:cl_$machine=True"
-        qsub="$qsub_old"
-    esac
-    
-    cat >$task_file <<EOF
+case "$machine_spec" in
+    cluster)
+        machine_spec=":cl_$machine=True"
+        ;;
+    node:*)
+        machine_spec=":vnode=${machine_spec#vnode:}"
+        ;;
+    none)
+        machine_spec=""
+        ;;
+esac
+
+cat >$task_file <<EOF
 #!/bin/bash
 #PBS -N argon2-cpu-$machine-${branches// /:}
+#PBS -l select=1:ncpus=$ncpus$machine_spec
 #PBS -l walltime=$duration
-$spec
+#PBS -l mem=32gb
 $(if [ -n "$queue" ]; then echo "#PBS -q $queue"; fi)
 
 module add cmake-3.6.1
@@ -80,7 +88,5 @@ cd argon2-gpu || exit 1
 bash scripts/benchmark-commits.sh "cpu-$machine" . .. $((2*$ncpus)) "$samples" cpu '' '' '' '' $branches 1>../bench.log 2>&1
 EOF
 
-    "$qsub" "$task_file"
-done
-
+qsub "$task_file"
 rm -f "$task_file"
