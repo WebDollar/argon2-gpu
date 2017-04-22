@@ -3,8 +3,8 @@
 machine="$1"; shift 1
 machine_spec="$1"; shift 1
 branches="$1"; shift 1
-max_memory_gb="$1"; shift 1
 ncpus="$1"; shift 1
+max_memory_gb="$1"; shift 1
 max_batch_size="$1"; shift 1
 samples="$1"; shift 1
 duration="$1"; shift 1
