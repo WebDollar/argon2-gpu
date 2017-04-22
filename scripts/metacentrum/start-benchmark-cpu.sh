@@ -59,9 +59,8 @@ esac
 cat >$task_file <<EOF
 #!/bin/bash
 #PBS -N argon2-cpu-$machine-${branches// /:}
-#PBS -l select=1:ncpus=$ncpus$machine_spec
+#PBS -l select=1:ncpus=$ncpus:mem=32gb$machine_spec
 #PBS -l walltime=$duration
-#PBS -l mem=32gb
 $(if [ -n "$queue" ]; then echo "#PBS -q $queue"; fi)
 
 module add cmake-3.6.1
