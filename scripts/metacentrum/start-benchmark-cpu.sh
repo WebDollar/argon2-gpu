@@ -67,6 +67,7 @@ cat >$task_file <<EOF
 #PBS -l walltime=$duration
 $(if [ -n "$queue" ]; then echo "#PBS -q $queue"; fi)
 
+module add gcc-5.3.0
 module add cmake-3.6.1
 module add cuda-8.0
 
