@@ -78,6 +78,7 @@ esac
 case "$mode" in
     cpu)
         spec="ncpus=$max_batch_size"
+        max_batch_size=$((2 * $max_batch_size))
         b_mode='cpu'
         ;;
     gpu)
