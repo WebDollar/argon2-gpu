@@ -57,10 +57,14 @@ case "$machine_spec" in
         machine_spec=":cl_$machine=True"
         ;;
     node:*)
-        machine_spec=":vnode=${machine_spec#vnode:}"
+        machine_spec=":vnode=${machine_spec#node:}"
         ;;
     none)
         machine_spec=""
+        ;;
+    *)
+        echo "ERROR: Invalid machine spec!" 1>&2
+        exit 1
         ;;
 esac
 
