@@ -4,6 +4,7 @@ mode="$1"; shift 1
 machine="$1"; shift 1
 machine_spec="$1"; shift 1
 branches="$1"; shift 1
+ncpus="$1"; shift 1
 max_memory_gb="$1"; shift 1
 max_batch_size="$1"; shift 1
 samples="$1"; shift 1
@@ -28,6 +29,11 @@ fi
 
 if [ -z "$branches" ]; then
     echo "ERROR: Branches must be specified!" 1>&2
+    exit 1
+fi
+
+if [ -z "$ncpus" ]; then
+    echo "ERROR: Number of CPUs must be specified!" 1>&2
     exit 1
 fi
 
@@ -77,12 +83,12 @@ esac
 
 case "$mode" in
     cpu)
-        spec="ncpus=$max_batch_size"
-        max_batch_size=$((2 * $max_batch_size))
+        spec=''
         b_mode='cpu'
         ;;
     gpu)
-        spec="ncpus=1:ngpus=1"
+        ncpus=1
+        spec=':ngpus=1'
         b_mode='cuda'
         ;;
     *)
@@ -94,7 +100,7 @@ esac
 cat >$task_file <<EOF
 #!/bin/bash
 #PBS -N argon2-$mode-$machine-${branches// /:}
-#PBS -l select=1:$spec:mem=${max_memory_gb}gb$machine_spec
+#PBS -l select=1:ncpus=$ncpus$spec:mem=${max_memory_gb}gb$machine_spec
 #PBS -l walltime=$duration
 $(if [ -n "$queue" ]; then echo -n "#PBS -q $queue"; fi)
 

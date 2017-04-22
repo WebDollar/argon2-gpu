@@ -5,6 +5,7 @@ machine_spec="$1"; shift 1
 branches="$1"; shift 1
 max_memory_gb="$1"; shift 1
 ncpus="$1"; shift 1
+max_batch_size="$1"; shift 1
 samples="$1"; shift 1
 duration="$1"; shift 1
 queue="$1"; shift 1
@@ -40,4 +41,4 @@ fi
 
 dirname="$(dirname "$0")"
 
-"$dirname/start-benchmark-common.sh" 'cpu' "$machine" "$machine_spec" "$branches" "$max_memory_gb" "$ncpus" "$samples" "$duration" "$queue" 'no'
+"$dirname/start-benchmark-common.sh" 'cpu' "$machine" "$machine_spec" "$branches" "$ncpus" "$max_memory_gb" "$max_batch_size" "$samples" "$duration" "$queue" 'no'

@@ -48,4 +48,4 @@ fi
 
 dirname="$(dirname "$0")"
 
-"$dirname/start-benchmark-common.sh" 'gpu' "$machine" "$machine_spec" "$branches" "$max_memory_gb" "$max_batch_size" "$samples" "$duration" "$queue" "$run_tests"
+"$dirname/start-benchmark-common.sh" 'gpu' "$machine" "$machine_spec" "$branches" 1 "$max_memory_gb" "$max_batch_size" "$samples" "$duration" "$queue" "$run_tests"
