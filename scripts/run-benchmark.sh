@@ -1,12 +1,17 @@
 #!/bin/bash
 
-max_batch_size="$1"
-samples="$2"
-modes="$3"
-kernels="$4"
-versions="$5"
-types="$6"
-precomputes="$7"
+max_memory_gb="$1"; shift 1
+max_batch_size="$1"; shift 1
+samples="$1"; shift 1
+modes="$1"; shift 1
+kernels="$1"; shift 1
+versions="$1"; shift 1
+types="$1"; shift 1
+precomputes="$1"; shift 1
+
+if [ -z "$max_memory_gb" ]; then
+    max_memory_gb=32
+fi
 
 if [ -z "$max_batch_size" ]; then
     max_batch_size=1024
@@ -71,7 +76,11 @@ for mode in $modes; do
                                 fi
                                 
                                 ret=1
-                                while [ $batch_size -ne 0 ] && [ $(( $m_cost / ($batch_size * $lanes) )) -le $MAX_WORK ]; do
+                                while [ $batch_size -ne 0 ] \
+                                        && [ $(( $m_cost * $batch_size )) \
+                                            -le $(($max_memory_gb * 1024 * 1024)) ] \
+                                        && [ $(( $m_cost / ($batch_size * $lanes) )) \
+                                            -le $MAX_WORK ]; do
                                     ns_per_hash=$(./argon2-gpu-bench \
                                         -t $type -v $version \
                                         $precompute_flag \

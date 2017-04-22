@@ -2,9 +2,9 @@
 
 dirname="$(dirname "$0")"
 
-bench_id="$1"
-src_dir="$2"
-dst_dir="$3"
+bench_id="$1"; shift 1
+src_dir="$1"; shift 1
+dst_dir="$1"; shift 1
 
 if [ -z "$bench_id" ]; then
     echo "ERROR: Bench ID not specified!" 1>&2
@@ -21,15 +21,19 @@ if [ -z "$dst_dir" ]; then
     exit 1
 fi
 
-shift 3
+max_memory_gb="$1"; shift 1
+max_batch_size="$1"; shift 1
+samples="$1"; shift 1
+modes="$1"; shift 1
+kernels="$1"; shift 1
+versions="$1"; shift 1
+types="$1"; shift 1
+precomputes="$1"; shift 1
 
-max_batch_size="$1"
-samples="$2"
-modes="$3"
-kernels="$4"
-versions="$5"
-types="$6"
-precomputes="$7"
+if [ -z "$max_memory_gb" ]; then
+    echo "ERROR: Maximum memory not specified!" 1>&2
+    exit 1
+fi
 
 if [ -z "$max_batch_size" ]; then
     echo "ERROR: Batch size not specified!" 1>&2
@@ -49,7 +53,7 @@ for commit in $@; do
     
     make || exit 1
     
-    "$dirname/run-benchmark.sh" "$max_batch_size" "$samples" \
+    "$dirname/run-benchmark.sh" "$max_memory_gb" "$max_batch_size" "$samples" \
         "$modes" "$kernels" "$versions" "$types" "$precomputes" \
         | tee "$dst_dir/bench-$bench_id-$commit.csv" || exit 1
 done
