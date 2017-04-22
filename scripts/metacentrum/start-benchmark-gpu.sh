@@ -27,7 +27,7 @@ if [ -z "$samples" ]; then
 fi
 
 if [ -z "$duration" ]; then
-    duration=1d
+    duration=24:00:00
 fi
 
 if [ -z "$queue" ]; then

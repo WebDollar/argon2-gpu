@@ -27,7 +27,7 @@ if [ -z "$samples" ]; then
 fi
 
 if [ -z "$duration" ]; then
-    duration=1d
+    duration=24:00:00
 fi
 
 REPO_URL='https://gitlab.com/omos/argon2-gpu.git'
@@ -41,11 +41,11 @@ qsub_old="$(which qsub)"
 module add pbspro-client
 
 for machine in $machines; do
-    spec="#PBS -l nodes=1:ppn=$ncpus:mem=4gb:cl_$machine"
+    spec="#PBS -l nodes=1:ppn=$ncpus:mem=32gb:cl_$machine"
     qsub=qsub
     case "$machine" in pro:*)
         machine="${machine#pro:}"
-        spec="#PBS -l select=1:ncpus=$ncpus:mem=4gb:cl_$machine=True"
+        spec="#PBS -l select=1:ncpus=$ncpus:mem=32gb:cl_$machine=True"
         qsub="$qsub_old"
     esac
     
