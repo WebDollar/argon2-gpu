@@ -37,13 +37,15 @@ for (i in 1:nrow(machines)) {
   }
   
   file <- paste0('bench-', type, '-', name, '-', branch, '.csv')
-  data_file <- read.csv(file, row.names=NULL)
-  data_file <- data_file[data_file$mode == mode & data_file$kernel == 'by-segment',]
-  if (type == 'gpu') {
-    data_file <- data_file[data_file$precompute == 'yes' | data_file$type == 'Argon2d',]
+  if (file.exists(file)) {
+    data_file <- read.csv(file, row.names=NULL)
+    data_file <- data_file[data_file$mode == mode & data_file$kernel == 'by-segment',]
+    if (type == 'gpu') {
+      data_file <- data_file[data_file$precompute == 'yes' | data_file$type == 'Argon2d',]
+    }
+    
+    data <- rbind(data, data.frame(Machine=id, HW=toupper(type), Version=data_file$version, Type=data_file$type, t_cost=data_file$t_cost, m_cost=data_file$m_cost, lanes=data_file$lanes, ns_per_hash=data_file$ns_per_hash, power=power))
   }
-  
-  data <- rbind(data, data.frame(Machine=id, HW=toupper(type), Version=data_file$version, Type=data_file$type, t_cost=data_file$t_cost, m_cost=data_file$m_cost, lanes=data_file$lanes, ns_per_hash=data_file$ns_per_hash, power=power))
 }
 
 data$hashes_per_second <- NS_PER_SEC / data$ns_per_hash
