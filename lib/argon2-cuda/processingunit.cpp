@@ -10,6 +10,15 @@
 namespace argon2 {
 namespace cuda {
 
+static void setCudaDevice(int deviceIndex)
+{
+    int currentIndex = -1;
+    CudaException::check(cudaGetDevice(&currentIndex));
+    if (currentIndex != deviceIndex) {
+        CudaException::check(cudaSetDevice(deviceIndex));
+    }
+}
+
 ProcessingUnit::ProcessingUnit(
         const ProgramContext *programContext, const Argon2Params *params,
         const Device *device, std::size_t batchSize, bool bySegment,
@@ -22,13 +31,7 @@ ProcessingUnit::ProcessingUnit(
       bestLanesPerBlock(runner.getMinLanesPerBlock()),
       bestJobsPerBlock(runner.getMinJobsPerBlock())
 {
-    /* Calling cudaSetDevice too often may cause lock-ups under certain
-     * conditions, so let's call it only when really necessary: */
-    int deviceIndex = -1;
-    CudaException::check(cudaGetDevice(&deviceIndex));
-    if (deviceIndex != device->getDeviceIndex()) {
-        CudaException::check(cudaSetDevice(device->getDeviceIndex()));
-    }
+    setCudaDevice(device->getDeviceIndex());
 
     auto memory = static_cast<std::uint8_t *>(runner.getMemory());
 
@@ -170,7 +173,7 @@ const void *ProcessingUnit::HashReader::getHash() const
 
 void ProcessingUnit::beginProcessing()
 {
-    CudaException::check(cudaSetDevice(device->getDeviceIndex()));
+    setCudaDevice(device->getDeviceIndex());
     runner.run(bestLanesPerBlock, bestJobsPerBlock);
 }
 
