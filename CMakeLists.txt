@@ -59,6 +59,7 @@ add_library(argon2-opencl SHARED
     lib/argon2-opencl/kernelloader.cpp
     lib/argon2-opencl/programcontext.cpp
     lib/argon2-opencl/processingunit.cpp
+    lib/argon2-opencl/kernelrunner.cpp
 )
 target_include_directories(argon2-opencl INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -108,6 +109,7 @@ install(FILES
     include/argon2-opencl/globalcontext.h
     include/argon2-opencl/programcontext.h
     include/argon2-opencl/processingunit.h
+    include/argon2-opencl/kernelrunner.h
     include/argon2-cuda/cudaexception.h
     include/argon2-cuda/kernels.h
     include/argon2-cuda/device.h
