@@ -1,7 +1,6 @@
 #include "processingunit.h"
 
 #include "cudaexception.h"
-#include "kernels.h"
 
 #include <limits>
 #ifndef NDEBUG
