@@ -450,7 +450,7 @@ __device__ void argon2_step_precompute(
         struct block_th *prev, struct block_th *tmp,
         struct u64_shuffle_buf *shuffle_buf, const struct ref **refs,
         uint32_t lanes, uint32_t segment_blocks, uint32_t lane_blocks,
-        uint32_t thread,  uint32_t lane, uint32_t pass, uint32_t slice,
+        uint32_t thread, uint32_t lane, uint32_t pass, uint32_t slice,
         uint32_t offset)
 {
     uint32_t ref_index, ref_lane;
