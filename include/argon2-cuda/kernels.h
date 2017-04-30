@@ -12,7 +12,7 @@
 namespace argon2 {
 namespace cuda {
 
-class Argon2KernelRunner
+class KernelRunner
 {
 private:
     std::uint32_t type, version;
@@ -44,11 +44,11 @@ public:
     std::uint32_t getBatchSize() const { return batchSize; }
     void *getMemory() const { return memory; }
 
-    Argon2KernelRunner(std::uint32_t type, std::uint32_t version,
-                       std::uint32_t passes, std::uint32_t lanes,
-                       std::uint32_t segmentBlocks, std::uint32_t batchSize,
-                       bool bySegment, bool precompute);
-    ~Argon2KernelRunner();
+    KernelRunner(std::uint32_t type, std::uint32_t version,
+                 std::uint32_t passes, std::uint32_t lanes,
+                 std::uint32_t segmentBlocks, std::uint32_t batchSize,
+                 bool bySegment, bool precompute);
+    ~KernelRunner();
 
     void run(std::uint32_t lanesPerBlock, std::uint32_t jobsPerBlock);
     float finish();

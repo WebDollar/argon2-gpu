@@ -801,10 +801,9 @@ __global__ void argon2_kernel_oneshot(
     }
 }
 
-Argon2KernelRunner::Argon2KernelRunner(
-        uint32_t type, uint32_t version, uint32_t passes, uint32_t lanes,
-        uint32_t segmentBlocks, uint32_t batchSize, bool bySegment,
-        bool precompute)
+KernelRunner::KernelRunner(uint32_t type, uint32_t version, uint32_t passes,
+                           uint32_t lanes, uint32_t segmentBlocks,
+                           uint32_t batchSize, bool bySegment, bool precompute)
     : type(type), version(version), passes(passes), lanes(lanes),
       segmentBlocks(segmentBlocks), batchSize(batchSize), bySegment(bySegment),
       precompute(precompute), stream(nullptr), memory(nullptr),
@@ -848,7 +847,7 @@ Argon2KernelRunner::Argon2KernelRunner(
     }
 }
 
-void Argon2KernelRunner::precomputeRefs()
+void KernelRunner::precomputeRefs()
 {
     struct ref *refs = (struct ref *)this->refs;
 
@@ -874,7 +873,7 @@ void Argon2KernelRunner::precomputeRefs()
     }
 }
 
-Argon2KernelRunner::~Argon2KernelRunner()
+KernelRunner::~KernelRunner()
 {
     if (start != nullptr) {
         cudaEventDestroy(start);
@@ -893,9 +892,9 @@ Argon2KernelRunner::~Argon2KernelRunner()
     }
 }
 
-void Argon2KernelRunner::runKernelSegment(uint32_t lanesPerBlock,
-                                          uint32_t jobsPerBlock,
-                                          uint32_t pass, uint32_t slice)
+void KernelRunner::runKernelSegment(uint32_t lanesPerBlock,
+                                    uint32_t jobsPerBlock,
+                                    uint32_t pass, uint32_t slice)
 {
     if (lanesPerBlock > lanes || lanes % lanesPerBlock != 0) {
         throw std::logic_error("Invalid lanesPerBlock!");
@@ -979,8 +978,8 @@ void Argon2KernelRunner::runKernelSegment(uint32_t lanesPerBlock,
     }
 }
 
-void Argon2KernelRunner::runKernelOneshot(uint32_t lanesPerBlock,
-                                          uint32_t jobsPerBlock)
+void KernelRunner::runKernelOneshot(uint32_t lanesPerBlock,
+                                    uint32_t jobsPerBlock)
 {
     if (lanesPerBlock != lanes) {
         throw std::logic_error("Invalid lanesPerBlock!");
@@ -1054,7 +1053,7 @@ void Argon2KernelRunner::runKernelOneshot(uint32_t lanesPerBlock,
     }
 }
 
-void Argon2KernelRunner::run(uint32_t lanesPerBlock, uint32_t jobsPerBlock)
+void KernelRunner::run(uint32_t lanesPerBlock, uint32_t jobsPerBlock)
 {
     CudaException::check(cudaEventRecord(start, stream));
 
@@ -1073,7 +1072,7 @@ void Argon2KernelRunner::run(uint32_t lanesPerBlock, uint32_t jobsPerBlock)
     CudaException::check(cudaEventRecord(end, stream));
 }
 
-float Argon2KernelRunner::finish()
+float KernelRunner::finish()
 {
     CudaException::check(cudaStreamSynchronize(stream));
 

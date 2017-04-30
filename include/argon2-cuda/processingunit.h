@@ -17,7 +17,7 @@ private:
     const Argon2Params *params;
     const Device *device;
 
-    Argon2KernelRunner runner;
+    KernelRunner runner;
     std::uint32_t bestLanesPerBlock;
     std::uint32_t bestJobsPerBlock;
 
