@@ -49,17 +49,18 @@ std::size_t runTests(const GlobalContext &global, const Device &device,
                 std::cout << "... ";
 
                 auto &params = tc->getParams();
+
+                auto buffer = std::unique_ptr<std::uint8_t[]>(
+                            new std::uint8_t[params.getOutputLength()]);
+
                 ProcessingUnit pu(&progCtx, &params, &device, 1, bySegment,
                                   precompute);
-                {
-                    typename ProcessingUnit::PasswordWriter writer(pu);
-                    writer.setPassword(tc->getInput(), tc->getInputLength());
-                }
+                pu.setPassword(0, tc->getInput(), tc->getInputLength());
                 pu.beginProcessing();
                 pu.endProcessing();
+                pu.getHash(0, buffer.get());
 
-                typename ProcessingUnit::HashReader hash(pu);
-                bool res = std::memcmp(tc->getOutput(), hash.getHash(),
+                bool res = std::memcmp(tc->getOutput(), buffer.get(),
                                        params.getOutputLength()) == 0;
                 if (!res) {
                     ++failures;

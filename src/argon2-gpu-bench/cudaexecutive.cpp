@@ -38,16 +38,12 @@ public:
         }
 
         clock_type::time_point checkpt0 = clock_type::now();
-        {
-            ProcessingUnit::PasswordWriter writer(unit);
-            for (std::size_t i = 0; i < batchSize; i++) {
-                const void *pw;
-                std::size_t pwLength;
-                pwGen.nextPassword(pw, pwLength);
-                writer.setPassword(pw, pwLength);
+        for (std::size_t i = 0; i < batchSize; i++) {
+            const void *pw;
+            std::size_t pwLength;
+            pwGen.nextPassword(pw, pwLength);
 
-                writer.moveForward(1);
-            }
+            unit.setPassword(i, pw, pwLength);
         }
         clock_type::time_point checkpt1 = clock_type::now();
 
@@ -55,12 +51,9 @@ public:
         unit.endProcessing();
 
         clock_type::time_point checkpt2 = clock_type::now();
-        {
-            ProcessingUnit::HashReader reader(unit);
-            for (std::size_t i = 0; i < batchSize; i++) {
-                reader.getHash();
-                reader.moveForward(1);
-            }
+        for (std::size_t i = 0; i < batchSize; i++) {
+            uint8_t buffer[HASH_LENGTH];
+            unit.getHash(i, buffer);
         }
         clock_type::time_point checkpt3 = clock_type::now();
 

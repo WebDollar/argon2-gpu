@@ -1,7 +1,9 @@
 #include "processingunit.h"
 
-#define THREADS_PER_LANE 32
-#define DEBUG_BUFFER_SIZE 4
+#include <limits>
+#ifndef NDEBUG
+#include <iostream>
+#endif
 
 namespace argon2 {
 namespace opencl {
@@ -10,131 +12,119 @@ ProcessingUnit::ProcessingUnit(
         const ProgramContext *programContext, const Argon2Params *params,
         const Device *device, std::size_t batchSize,
         bool bySegment, bool precomputeRefs)
-    : programContext(programContext), params(params),
-      device(device), batchSize(batchSize), bySegment(bySegment)
+    : programContext(programContext), params(params), device(device),
+      runner(programContext, params, device, batchSize, bySegment,
+             precomputeRefs),
+      bestLanesPerBlock(runner.getMinLanesPerBlock()),
+      bestJobsPerBlock(runner.getMinJobsPerBlock())
 {
-    // TODO: implement precomputeRefs
-    // FIXME: check memSize out of bounds
-    auto &clContext = programContext->getContext();
-    auto lanes = params->getLanes();
-    cmdQueue = cl::CommandQueue(clContext, device->getCLDevice());
+    /* pre-fill first blocks with pseudo-random data: */
+    for (std::size_t i = 0; i < batchSize; i++) {
+        setPassword(i, NULL, 0);
+    }
 
-    memorySize = params->getMemorySize() * batchSize;
-    memoryBuffer = cl::Buffer(clContext, CL_MEM_READ_WRITE, memorySize);
-    debugBuffer = cl::Buffer(clContext, CL_MEM_WRITE_ONLY, DEBUG_BUFFER_SIZE);
+    if (runner.getMaxLanesPerBlock() > runner.getMinLanesPerBlock()) {
+#ifndef NDEBUG
+        std::cerr << "[INFO] Tuning lanes per block..." << std::endl;
+#endif
 
-    mappedMemoryBuffer = cmdQueue.enqueueMapBuffer(
-                memoryBuffer, true, CL_MAP_WRITE, 0, memorySize);
+        float bestTime = std::numeric_limits<float>::infinity();
+        for (std::uint32_t lpb = 1; lpb <= runner.getMaxLanesPerBlock();
+             lpb *= 2)
+        {
+            float time;
+            try {
+                runner.run(lpb, bestJobsPerBlock);
+                time = runner.finish();
+            } catch(cl::Error &ex) {
+#ifndef NDEBUG
+                std::cerr << "[WARN]   OpenCL error on " << lpb
+                          << " lanes per block: " << ex.what() << std::endl;
+#endif
+                break;
+            }
 
-    if (bySegment) {
-        kernel = cl::Kernel(programContext->getProgram(),
-                            "argon2_kernel_segment");
-        kernel.setArg<cl::Buffer>(0, memoryBuffer);
-        kernel.setArg<cl_uint>(1, params->getTimeCost());
-        kernel.setArg<cl_uint>(2, lanes);
-        kernel.setArg<cl_uint>(3, params->getSegmentBlocks());
-    } else {
-        auto localMemSize = (std::size_t)lanes * ARGON2_BLOCK_SIZE;
-        if (programContext->getArgon2Type() != ARGON2_D) {
-            localMemSize *= 3;
-        } else {
-            localMemSize *= 2;
+#ifndef NDEBUG
+            std::cerr << "[INFO]   " << lpb << " lanes per block: "
+                      << time << " ms" << std::endl;
+#endif
+
+            if (time < bestTime) {
+                bestTime = time;
+                bestLanesPerBlock = lpb;
+            }
         }
+#ifndef NDEBUG
+        std::cerr << "[INFO] Picked " << bestLanesPerBlock
+                  << " lanes per block." << std::endl;
+#endif
+    }
 
-        kernel = cl::Kernel(programContext->getProgram(),
-                            "argon2_kernel_oneshot");
-        kernel.setArg<cl::Buffer>(0, memoryBuffer);
-        kernel.setArg<cl::LocalSpaceArg>(1, { localMemSize });
-        kernel.setArg<cl_uint>(2, params->getTimeCost());
-        kernel.setArg<cl_uint>(3, lanes);
-        kernel.setArg<cl_uint>(4, params->getSegmentBlocks());
+    /* Only tune jobs per block if we hit maximum lanes per block: */
+    if (bestLanesPerBlock == runner.getMaxLanesPerBlock()
+            && runner.getMaxJobsPerBlock() > runner.getMinJobsPerBlock()) {
+#ifndef NDEBUG
+        std::cerr << "[INFO] Tuning jobs per block..." << std::endl;
+#endif
+
+        float bestTime = std::numeric_limits<float>::infinity();
+        for (std::uint32_t jpb = 1; jpb <= runner.getMaxJobsPerBlock();
+             jpb *= 2)
+        {
+            float time;
+            try {
+                runner.run(bestLanesPerBlock, jpb);
+                time = runner.finish();
+            } catch(cl::Error &ex) {
+#ifndef NDEBUG
+                std::cerr << "[WARN]   OpenCL error on " << jpb
+                          << " jobs per block: " << ex.what() << std::endl;
+#endif
+                break;
+            }
+
+#ifndef NDEBUG
+            std::cerr << "[INFO]   " << jpb << " jobs per block: "
+                      << time << " ms" << std::endl;
+#endif
+
+            if (time < bestTime) {
+                bestTime = time;
+                bestJobsPerBlock = jpb;
+            }
+        }
+#ifndef NDEBUG
+        std::cerr << "[INFO] Picked " << bestJobsPerBlock
+                  << " jobs per block." << std::endl;
+#endif
     }
 }
 
-ProcessingUnit::PasswordWriter::PasswordWriter(
-        ProcessingUnit &parent, std::size_t index)
-    : params(parent.params),
-      type(parent.programContext->getArgon2Type()),
-      version(parent.programContext->getArgon2Version()),
-      dest(static_cast<std::uint8_t *>(parent.mappedMemoryBuffer))
+void ProcessingUnit::setPassword(std::size_t index, const void *pw,
+                                 std::size_t pwSize)
 {
-    dest += index * params->getMemorySize();
+    void *memory = runner.mapInputMemory(index);
+    params->fillFirstBlocks(memory, pw, pwSize,
+                            programContext->getArgon2Type(),
+                            programContext->getArgon2Version());
+    runner.unmapInputMemory(memory);
 }
 
-void ProcessingUnit::PasswordWriter::moveForward(std::size_t offset)
+void ProcessingUnit::getHash(std::size_t index, void *hash)
 {
-    dest += offset * params->getMemorySize();
-}
-
-void ProcessingUnit::PasswordWriter::moveBackwards(std::size_t offset)
-{
-    dest -= offset * params->getMemorySize();
-}
-
-void ProcessingUnit::PasswordWriter::setPassword(
-        const void *pw, std::size_t pwSize) const
-{
-    params->fillFirstBlocks(dest, pw, pwSize, type, version);
-}
-
-ProcessingUnit::HashReader::HashReader(
-        ProcessingUnit &parent, std::size_t index)
-    : params(parent.params),
-      src(static_cast<const std::uint8_t *>(parent.mappedMemoryBuffer)),
-      buffer(new std::uint8_t[params->getOutputLength()])
-{
-    src += index * params->getMemorySize();
-}
-
-void ProcessingUnit::HashReader::moveForward(std::size_t offset)
-{
-    src += offset * params->getMemorySize();
-}
-
-void ProcessingUnit::HashReader::moveBackwards(std::size_t offset)
-{
-    src -= offset * params->getMemorySize();
-}
-
-const void *ProcessingUnit::HashReader::getHash() const
-{
-    params->finalize(buffer.get(), src);
-    return buffer.get();
+    void *memory = runner.mapOutputMemory(index);
+    params->finalize(hash, memory);
+    runner.unmapOutputMemory(memory);
 }
 
 void ProcessingUnit::beginProcessing()
 {
-    cmdQueue.enqueueUnmapMemObject(memoryBuffer, mappedMemoryBuffer);
-
-    if (bySegment) {
-        for (cl_uint pass = 0; pass < params->getTimeCost(); pass++) {
-            kernel.setArg<cl_uint>(4, pass);
-            for (cl_uint slice = 0; slice < ARGON2_SYNC_POINTS; slice++) {
-                kernel.setArg<cl_uint>(5, slice);
-                cmdQueue.enqueueNDRangeKernel(
-                            kernel, cl::NullRange,
-                            cl::NDRange(THREADS_PER_LANE, params->getLanes(),
-                                        batchSize),
-                            cl::NDRange(THREADS_PER_LANE, 1, 1));
-            }
-        }
-    } else {
-        cmdQueue.enqueueNDRangeKernel(
-                    kernel, cl::NullRange,
-                    cl::NDRange(THREADS_PER_LANE, params->getLanes(),
-                                batchSize),
-                    cl::NDRange(THREADS_PER_LANE, params->getLanes(), 1));
-    }
-
-    mappedMemoryBuffer = cmdQueue.enqueueMapBuffer(
-                memoryBuffer, false, CL_MAP_READ | CL_MAP_WRITE,
-                0, memorySize, nullptr, &event);
+    runner.run(bestLanesPerBlock, bestJobsPerBlock);
 }
 
 void ProcessingUnit::endProcessing()
 {
-    event.wait();
-    event = cl::Event();
+    runner.finish();
 }
 
 } // namespace opencl

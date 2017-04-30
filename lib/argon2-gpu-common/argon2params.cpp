@@ -119,43 +119,45 @@ void Argon2Params::fillFirstBlocks(
 #endif
 
     auto bmemory = static_cast<std::uint8_t *>(memory);
-    for (std::uint32_t l = 0; l < lanes; l++) {
-        auto block_start = bmemory;
 
-        store32(initHash + ARGON2_PREHASH_DIGEST_LENGTH, 0);
+    store32(initHash + ARGON2_PREHASH_DIGEST_LENGTH, 0);
+    for (std::uint32_t l = 0; l < lanes; l++) {
         store32(initHash + ARGON2_PREHASH_DIGEST_LENGTH + 4, l);
-        digestLong(block_start, ARGON2_BLOCK_SIZE, initHash, sizeof(initHash));
+        digestLong(bmemory, ARGON2_BLOCK_SIZE, initHash, sizeof(initHash));
 
 #ifdef DEBUG
         std::fprintf(stderr, "Initial block 0 for lane %u: {\n", (unsigned)l);
         for (std::size_t i = 0; i < ARGON2_BLOCK_SIZE / 8; i++) {
             std::fprintf(stderr, "  0x");
             for (std::size_t k = 0; k < 8; k++) {
-                std::fprintf(stderr, "%02x", (unsigned)block_start[i * 8 + 7 - k]);
+                std::fprintf(stderr, "%02x", (unsigned)bmemory[i * 8 + 7 - k]);
             }
             std::fprintf(stderr, "UL,\n");
         }
         std::fprintf(stderr, "}\n");
 #endif
 
-        block_start += ARGON2_BLOCK_SIZE;
+        bmemory += ARGON2_BLOCK_SIZE;
+    }
 
-        store32(initHash + ARGON2_PREHASH_DIGEST_LENGTH, 1);
-        digestLong(block_start, ARGON2_BLOCK_SIZE, initHash, sizeof(initHash));
+    store32(initHash + ARGON2_PREHASH_DIGEST_LENGTH, 1);
+    for (std::uint32_t l = 0; l < lanes; l++) {
+        store32(initHash + ARGON2_PREHASH_DIGEST_LENGTH + 4, l);
+        digestLong(bmemory, ARGON2_BLOCK_SIZE, initHash, sizeof(initHash));
 
 #ifdef DEBUG
         std::fprintf(stderr, "Initial block 1 for lane %u: {\n", (unsigned)l);
         for (std::size_t i = 0; i < ARGON2_BLOCK_SIZE / 8; i++) {
             std::fprintf(stderr, "  0x");
             for (std::size_t k = 0; k < 8; k++) {
-                std::fprintf(stderr, "%02x", (unsigned)block_start[i * 8 + 7 - k]);
+                std::fprintf(stderr, "%02x", (unsigned)bmemory[i * 8 + 7 - k]);
             }
             std::fprintf(stderr, "UL,\n");
         }
         std::fprintf(stderr, "}\n");
 #endif
 
-        bmemory += ARGON2_BLOCK_SIZE * getLaneBlocks();
+        bmemory += ARGON2_BLOCK_SIZE;
     }
 }
 
@@ -169,21 +171,18 @@ void Argon2Params::finalize(void *out, const void *memory) const
 
     auto cursor = static_cast<const block *>(memory);
 #ifdef DEBUG
-    for (std::size_t i = 0; i < getMemoryBlocks(); i++) {
+    for (std::size_t l = 0; l < getLanes(); l++) {
         for (std::size_t k = 0; k < ARGON2_BLOCK_SIZE / 8; k++) {
             std::fprintf(stderr, "Block %04u [%3u]: %016llx\n",
                          (unsigned)i, (unsigned)k,
-                         (unsigned long long)cursor[i].v[k]);
+                         (unsigned long long)cursor[l].v[k]);
         }
     }
 #endif
 
-    cursor = static_cast<const block *>(memory);
-    cursor += getLaneBlocks() - 1;
-
     block xored = *cursor;
     for (std::uint32_t l = 1; l < lanes; l++) {
-        cursor += getLaneBlocks();
+        ++cursor;
         for (std::size_t i = 0; i < ARGON2_BLOCK_SIZE / 8; i++) {
             xored.v[i] ^= cursor->v[i];
         }
