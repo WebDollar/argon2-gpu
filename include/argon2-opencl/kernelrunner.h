@@ -22,7 +22,6 @@ private:
     cl::Buffer memoryBuffer, refsBuffer;
     cl::Event start, end;
 
-    void *memory;
     std::uint32_t memorySize;
 
     void precomputeRefs();
@@ -38,11 +37,16 @@ public:
     std::uint32_t getMaxJobsPerBlock() const { return batchSize; }
 
     std::uint32_t getBatchSize() const { return batchSize; }
-    void *getMemory() const { return memory; }
 
     KernelRunner(const ProgramContext *programContext,
                  const Argon2Params *params, const Device *device,
                  std::uint32_t batchSize, bool bySegment, bool precompute);
+
+    void *mapInputMemory(std::uint32_t jobId);
+    void unmapInputMemory(void *memory);
+
+    void *mapOutputMemory(std::uint32_t jobId);
+    void unmapOutputMemory(void *memory);
 
     void run(std::uint32_t lanesPerBlock, std::uint32_t jobsPerBlock);
     float finish();

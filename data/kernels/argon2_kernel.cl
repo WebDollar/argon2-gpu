@@ -346,11 +346,11 @@ void compute_ref_pos(uint lanes, uint segment_blocks,
 void argon2_core(
         __global struct block_g *memory, __global struct block_g *mem_curr,
         struct block_th *prev, struct block_th *tmp,
-        __local struct u64_shuffle_buf *shuffle_buf, uint lane_blocks,
+        __local struct u64_shuffle_buf *shuffle_buf, uint lanes,
         uint thread, uint pass, uint ref_index, uint ref_lane)
 {
     __global struct block_g *mem_ref;
-    mem_ref = memory + ref_lane * lane_blocks + ref_index;
+    mem_ref = memory + ref_index * lanes + ref_lane;
 
 #if ARGON2_VERSION == ARGON2_VERSION_10
     load_block_xor(prev, mem_ref, thread);
@@ -486,9 +486,8 @@ void argon2_step_precompute(
         struct block_th *prev, struct block_th *tmp,
         __local struct u64_shuffle_buf *shuffle_buf,
         __global const struct ref **refs,
-        uint lanes, uint segment_blocks, uint lane_blocks,
-        uint thread,  uint lane, uint pass, uint slice,
-        uint offset)
+        uint lanes, uint segment_blocks, uint thread,
+        uint lane, uint pass, uint slice, uint offset)
 {
     uint ref_index, ref_lane;
     bool data_independent;
@@ -512,8 +511,8 @@ void argon2_step_precompute(
                         &ref_lane, &ref_index);
     }
 
-    argon2_core(memory, mem_curr, prev, tmp, shuffle_buf, lane_blocks,
-                thread, pass, ref_index, ref_lane);
+    argon2_core(memory, mem_curr, prev, tmp, shuffle_buf, lanes, thread, pass,
+                ref_index, ref_lane);
 }
 
 __kernel void argon2_kernel_segment_precompute(
@@ -537,20 +536,20 @@ __kernel void argon2_kernel_segment_precompute(
     struct block_th prev, tmp;
 
     __global struct block_g *mem_segment =
-            memory + lane * lane_blocks + slice * segment_blocks;
+            memory + slice * segment_blocks * lanes + lane;
     __global struct block_g *mem_prev, *mem_curr;
     uint start_offset = 0;
     if (pass == 0) {
         if (slice == 0) {
-            mem_prev = mem_segment + 1;
-            mem_curr = mem_segment + 2;
+            mem_prev = mem_segment + 1 * lanes;
+            mem_curr = mem_segment + 2 * lanes;
             start_offset = 2;
         } else {
-            mem_prev = mem_segment - 1;
+            mem_prev = mem_segment - lanes;
             mem_curr = mem_segment;
         }
     } else {
-        mem_prev = mem_segment + (slice == 0 ? lane_blocks : 0) - 1;
+        mem_prev = mem_segment + (slice == 0 ? lane_blocks * lanes : 0) - lanes;
         mem_curr = mem_segment;
     }
 
@@ -569,10 +568,9 @@ __kernel void argon2_kernel_segment_precompute(
     for (uint offset = start_offset; offset < segment_blocks; ++offset) {
         argon2_step_precompute(
                     memory, mem_curr, &prev, &tmp, shuffle_buf, &refs, lanes,
-                    segment_blocks, lane_blocks, thread,
-                    lane, pass, slice, offset);
+                    segment_blocks, thread, lane, pass, slice, offset);
 
-        ++mem_curr;
+        mem_curr += lanes;
     }
 }
 
@@ -595,9 +593,9 @@ __kernel void argon2_kernel_oneshot_precompute(
 
     struct block_th prev, tmp;
 
-    __global struct block_g *mem_lane = memory + lane * lane_blocks;
-    __global struct block_g *mem_prev = mem_lane + 1;
-    __global struct block_g *mem_curr = mem_lane + 2;
+    __global struct block_g *mem_lane = memory + lane;
+    __global struct block_g *mem_prev = mem_lane + 1 * lanes;
+    __global struct block_g *mem_curr = mem_lane + 2 * lanes;
 
     load_block(&prev, mem_prev, thread);
 
@@ -618,10 +616,10 @@ __kernel void argon2_kernel_oneshot_precompute(
 
                 argon2_step_precompute(
                             memory, mem_curr, &prev, &tmp, shuffle_buf, &refs,
-                            lanes, segment_blocks, lane_blocks, thread, lane,
-                            pass, slice, offset);
+                            lanes, segment_blocks, thread,
+                            lane, pass, slice, offset);
 
-                ++mem_curr;
+                mem_curr += lanes;
             }
 
             barrier(CLK_LOCAL_MEM_FENCE);
@@ -636,8 +634,7 @@ void argon2_step(
         __global struct block_g *memory, __global struct block_g *mem_curr,
         struct block_th *prev, struct block_th *tmp, struct block_th *addr,
         __local struct u64_shuffle_buf *shuffle_buf,
-        uint lanes, uint segment_blocks, uint lane_blocks,
-        uint thread, uint *thread_input,
+        uint lanes, uint segment_blocks, uint thread, uint *thread_input,
         uint lane, uint pass, uint slice, uint offset)
 {
     uint ref_index, ref_lane;
@@ -674,8 +671,8 @@ void argon2_step(
     compute_ref_pos(lanes, segment_blocks, pass, lane, slice, offset,
                     &ref_lane, &ref_index);
 
-    argon2_core(memory, mem_curr, prev, tmp, shuffle_buf, lane_blocks,
-                thread, pass, ref_index, ref_lane);
+    argon2_core(memory, mem_curr, prev, tmp, shuffle_buf, lanes, thread, pass,
+                ref_index, ref_lane);
 }
 
 __kernel void argon2_kernel_segment(
@@ -732,20 +729,20 @@ __kernel void argon2_kernel_segment(
 #endif
 
     __global struct block_g *mem_segment =
-            memory + lane * lane_blocks + slice * segment_blocks;
+            memory + slice * segment_blocks * lanes + lane;
     __global struct block_g *mem_prev, *mem_curr;
     uint start_offset = 0;
     if (pass == 0) {
         if (slice == 0) {
-            mem_prev = mem_segment + 1;
-            mem_curr = mem_segment + 2;
+            mem_prev = mem_segment + 1 * lanes;
+            mem_curr = mem_segment + 2 * lanes;
             start_offset = 2;
         } else {
-            mem_prev = mem_segment - 1;
+            mem_prev = mem_segment - lanes;
             mem_curr = mem_segment;
         }
     } else {
-        mem_prev = mem_segment + (slice == 0 ? lane_blocks : 0) - 1;
+        mem_prev = mem_segment + (slice == 0 ? lane_blocks * lanes : 0) - lanes;
         mem_curr = mem_segment;
     }
 
@@ -753,11 +750,10 @@ __kernel void argon2_kernel_segment(
 
     for (uint offset = start_offset; offset < segment_blocks; ++offset) {
         argon2_step(memory, mem_curr, &prev, &tmp, &addr, shuffle_buf,
-                    lanes, segment_blocks, lane_blocks,
-                    thread, &thread_input,
+                    lanes, segment_blocks, thread, &thread_input,
                     lane, pass, slice, offset);
 
-        ++mem_curr;
+        mem_curr += lanes;
     }
 }
 
@@ -808,9 +804,9 @@ __kernel void argon2_kernel_oneshot(
     }
 #endif
 
-    __global struct block_g *mem_lane = memory + lane * lane_blocks;
-    __global struct block_g *mem_prev = mem_lane + 1;
-    __global struct block_g *mem_curr = mem_lane + 2;
+    __global struct block_g *mem_lane = memory + lane;
+    __global struct block_g *mem_prev = mem_lane + 1 * lanes;
+    __global struct block_g *mem_curr = mem_lane + 2 * lanes;
 
     load_block(&prev, mem_prev, thread);
 
@@ -824,11 +820,10 @@ __kernel void argon2_kernel_oneshot(
                 }
 
                 argon2_step(memory, mem_curr, &prev, &tmp, &addr, shuffle_buf,
-                            lanes, segment_blocks, lane_blocks,
-                            thread, &thread_input,
+                            lanes, segment_blocks, thread, &thread_input,
                             lane, pass, slice, offset);
 
-                ++mem_curr;
+                mem_curr += lanes;
             }
 
             barrier(CLK_LOCAL_MEM_FENCE);

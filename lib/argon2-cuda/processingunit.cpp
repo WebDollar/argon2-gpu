@@ -31,14 +31,9 @@ ProcessingUnit::ProcessingUnit(
         CudaException::check(cudaSetDevice(device->getDeviceIndex()));
     }
 
-    auto memory = static_cast<std::uint8_t *>(runner.getMemory());
-
     /* pre-fill first blocks with pseudo-random data: */
     for (std::size_t i = 0; i < batchSize; i++) {
-        params->fillFirstBlocks(memory, NULL, 0,
-                                programContext->getArgon2Type(),
-                                programContext->getArgon2Version());
-        memory += params->getMemorySize();
+        setPassword(i, NULL, 0);
     }
 
     if (runner.getMaxLanesPerBlock() > runner.getMinLanesPerBlock()) {
@@ -118,55 +113,22 @@ ProcessingUnit::ProcessingUnit(
     }
 }
 
-ProcessingUnit::PasswordWriter::PasswordWriter(
-        ProcessingUnit &parent, std::size_t index)
-    : params(parent.params),
-      type(parent.programContext->getArgon2Type()),
-      version(parent.programContext->getArgon2Version()),
-      dest(static_cast<std::uint8_t *>(parent.runner.getMemory()))
+void ProcessingUnit::setPassword(std::size_t index, const void *pw,
+                                 std::size_t pwSize)
 {
-    dest += index * params->getMemorySize();
+    auto memory = static_cast<std::uint8_t *>(runner.getMemory());
+    memory += index * params->getMemorySize();
+    params->fillFirstBlocks(memory, pw, pwSize,
+                            programContext->getArgon2Type(),
+                            programContext->getArgon2Version());
 }
 
-void ProcessingUnit::PasswordWriter::moveForward(std::size_t offset)
+void ProcessingUnit::getHash(std::size_t index, void *hash)
 {
-    dest += offset * params->getMemorySize();
-}
-
-void ProcessingUnit::PasswordWriter::moveBackwards(std::size_t offset)
-{
-    dest -= offset * params->getMemorySize();
-}
-
-void ProcessingUnit::PasswordWriter::setPassword(
-        const void *pw, std::size_t pwSize) const
-{
-    params->fillFirstBlocks(dest, pw, pwSize, type, version);
-}
-
-ProcessingUnit::HashReader::HashReader(
-        ProcessingUnit &parent, std::size_t index)
-    : params(parent.params),
-      src(static_cast<const std::uint8_t *>(parent.runner.getMemory())),
-      buffer(new std::uint8_t[params->getOutputLength()])
-{
-    src += index * params->getMemorySize();
-}
-
-void ProcessingUnit::HashReader::moveForward(std::size_t offset)
-{
-    src += offset * params->getMemorySize();
-}
-
-void ProcessingUnit::HashReader::moveBackwards(std::size_t offset)
-{
-    src -= offset * params->getMemorySize();
-}
-
-const void *ProcessingUnit::HashReader::getHash() const
-{
-    params->finalize(buffer.get(), src);
-    return buffer.get();
+    auto memory = static_cast<std::uint8_t *>(runner.getMemory());
+    memory += (index + 1) * params->getMemorySize();
+    memory -= params->getLanes() * ARGON2_BLOCK_SIZE;
+    params->finalize(hash, memory);
 }
 
 void ProcessingUnit::beginProcessing()
