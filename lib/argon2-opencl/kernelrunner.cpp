@@ -45,7 +45,7 @@ KernelRunner::KernelRunner(const ProgramContext *programContext,
                   << std::endl;
 #endif
 
-        refsBuffer = cl::Buffer(context, CL_MEM_READ_ONLY, refsSize);
+        refsBuffer = cl::Buffer(context, CL_MEM_READ_WRITE, refsSize);
 
         precomputeRefs();
     }
@@ -122,7 +122,7 @@ void *KernelRunner::mapOutputMemory(std::uint32_t jobId)
     std::size_t memorySize = params->getMemorySize();
     std::size_t mappedSize = params->getLanes() * ARGON2_BLOCK_SIZE;
     std::size_t mappedOffset = memorySize * (jobId + 1) - mappedSize;
-    return queue.enqueueMapBuffer(memoryBuffer, true, CL_MAP_WRITE,
+    return queue.enqueueMapBuffer(memoryBuffer, true, CL_MAP_READ,
                                   mappedOffset, mappedSize);
 }
 
