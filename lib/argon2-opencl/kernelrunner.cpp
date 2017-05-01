@@ -33,7 +33,7 @@ KernelRunner::KernelRunner(const ProgramContext *programContext,
 
     Type type = programContext->getArgon2Type();
     if ((type == ARGON2_I || type == ARGON2_ID) && precompute) {
-        uint32_t segments =
+        std::uint32_t segments =
                 type == ARGON2_ID
                 ? lanes * (ARGON2_SYNC_POINTS / 2)
                 : passes * lanes * ARGON2_SYNC_POINTS;
