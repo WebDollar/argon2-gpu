@@ -836,11 +836,7 @@ KernelRunner::KernelRunner(uint32_t type, uint32_t version, uint32_t passes,
                   << std::endl;
 #endif
 
-        CudaException::check(cudaMallocManaged(&refs, refsSize,
-                                               cudaMemAttachHost));
-
-        CudaException::check(cudaStreamAttachMemAsync(stream, refs));
-        CudaException::check(cudaStreamSynchronize(stream));
+        CudaException::check(cudaMalloc(&refs, refsSize));
 
         precomputeRefs();
         CudaException::check(cudaStreamSynchronize(stream));
