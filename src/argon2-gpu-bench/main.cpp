@@ -98,7 +98,7 @@ static CommandLineParser<Arguments> buildCmdLineParser()
     };
 
     return CommandLineParser<Arguments>(
-        "A tool for benchmarking the argon2-opencl library.",
+        "A tool for benchmarking the argon2-opencl and argon2-cuda libraries.",
         positional, options);
 }
 
