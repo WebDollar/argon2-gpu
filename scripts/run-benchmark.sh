@@ -59,6 +59,12 @@ for mode in $modes; do
                     precomputes2='no'
                 fi
                 for precompute in $precomputes2; do
+                    if [ $precompute == 'yes' ]; then
+                        precompute_flag='-p'
+                    else
+                        precompute_flag=''
+                    fi
+                    
                     for t_cost in 1 2 4 6 8; do
                         for (( lanes = 1; lanes <= 32; lanes *= 2 )); do
                             batch_size=$max_batch_size
@@ -69,12 +75,6 @@ for mode in $modes; do
                             fi
                             
                             for (( m_cost = $((8 * $lanes)); ; m_cost *= 2 )); do
-                                if [ $precompute == 'yes' ]; then
-                                    precompute_flag='-p'
-                                else
-                                    precompute_flag=''
-                                fi
-                                
                                 ret=1
                                 while [ $batch_size -ne 0 ] \
                                         && [ $(( $m_cost * $batch_size )) \
