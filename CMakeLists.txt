@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.7)
 
 project(argon2-gpu CXX)
 set(BINARY_INSTALL_DIR /usr/local/bin)
@@ -9,7 +9,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(CUDA REQUIRED)
 
-set(CUDA_PROPAGATE_HOST_FLAGS OFF)
 set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};
     -std=c++11;-O3;--ptxas-options=-v;-arch sm_30;-lineinfo
 )
@@ -27,13 +26,6 @@ target_include_directories(argon2-gpu-common INTERFACE
 target_include_directories(argon2-gpu-common PRIVATE
     include/argon2-gpu-common
     lib/argon2-gpu-common
-)
-
-# HACK because CMake is a piece of crap (remove this when we can depend on v3.7 and above):
-cuda_include_directories(
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>$<INSTALL_INTERFACE:include>
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/argon2-cuda
-    ${CMAKE_CURRENT_SOURCE_DIR}/lib/argon2-cuda
 )
 
 cuda_add_library(argon2-cuda SHARED
