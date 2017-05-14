@@ -172,7 +172,7 @@ make_plots_modes <-  function(commit, kernel, version, type, precompute) {
     data_b_f_t_cost <- data_b$t_cost %in% c(1, 2, 4, 8, 16)
     data_b_f_m_cost <- data_b$m_cost %in% c(4096, 16384, 65536, 262144, 1048576)
     
-    prefix <- paste0('plot-modes-', bench_id, '-', commit, '-', mode, '-v', version, '-argon2', type)
+    prefix <- paste0('plot-modes-', bench_id, '-', commit, '-', kernel, '-v', version, '-argon2', type)
     if (precompute == 'yes') {
       prefix <- paste0(prefix, '-precompute')
     }
