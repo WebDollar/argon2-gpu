@@ -72,7 +72,7 @@ add_executable(argon2-gpu-test
 )
 target_include_directories(argon2-gpu-test PRIVATE src/argon2-gpu-test)
 target_link_libraries(argon2-gpu-test
-    argon2-cuda argon2-opencl -lOpenCL
+    argon2-cuda argon2-opencl argon2 -lOpenCL
 )
 
 add_executable(argon2-gpu-bench

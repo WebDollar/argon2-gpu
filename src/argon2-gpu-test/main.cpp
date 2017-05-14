@@ -6,8 +6,11 @@
 #include "argon2-cuda/processingunit.h"
 #include "argon2-cuda/cudaexception.h"
 
+#include "argon2.h"
+
 #include "testcase.h"
 #include "testvectors.h"
+#include "testparams.h"
 
 #include <iostream>
 #include <array>
@@ -18,11 +21,12 @@ using namespace argon2;
 
 template<class Device, class GlobalContext, class ProgramContext,
          class ProcessingUnit>
-std::size_t runTests(const GlobalContext &global, const Device &device,
-                     Type type, Version version,
-                     const TestCase *casesFrom, const TestCase *casesTo)
+std::size_t runParamsVsRef(const GlobalContext &global, const Device &device,
+                           Type type, Version version,
+                           const Argon2Params *paramsFrom,
+                           const Argon2Params *paramsTo)
 {
-    std::cout << "Running tests for Argon2";
+    std::cout << "Running tests against reference for Argon2";
     if (type == ARGON2_I) {
         std::cout << "i";
     } else if (type == ARGON2_D) {
@@ -30,7 +34,103 @@ std::size_t runTests(const GlobalContext &global, const Device &device,
     } else if (type == ARGON2_ID) {
         std::cout << "id";
     }
-    std::cout << " v" << (version == ARGON2_VERSION_10 ? "1.0" : "1.3")
+    std::cout << " v" << (version == argon2::ARGON2_VERSION_10 ? "1.0" : "1.3")
+              << "..." << std::endl;
+
+    std::size_t failures = 0;
+    ProgramContext progCtx(&global, { device }, type, version);
+    for (auto bySegment : {true, false}) {
+        const std::array<bool, 2> precomputeOpts = { false, true };
+        auto precBegin = precomputeOpts.begin();
+        auto precEnd = precomputeOpts.end();
+        if (type == ARGON2_D) {
+            precEnd--;
+        }
+        for (auto precIt = precBegin; precIt != precEnd; precIt++) {
+            for (auto params = paramsFrom; params < paramsTo; ++params) {
+                bool precompute = *precIt;
+                std::cout << "  "
+                          << (bySegment  ? "[by-segment] " : "[oneshot]    ")
+                          << (precompute ? "[precompute] " : "[in-place]   ");
+                std::cout << "o=" << params->getOutputLength()
+                          << " t=" << params->getTimeCost()
+                          << " m=" << params->getMemoryCost()
+                          << " p=" << params->getLanes();
+                std::cout << "... ";
+
+                auto bufferRef = std::unique_ptr<std::uint8_t[]>(
+                            new std::uint8_t[params->getOutputLength()]);
+
+                argon2_context ctx;
+
+                ctx.out = bufferRef.get();
+                ctx.outlen = params->getOutputLength();
+                ctx.pwd = (uint8_t *)"password";
+                ctx.pwdlen = 8;
+
+                ctx.salt = (uint8_t *)params->getSalt();
+                ctx.saltlen = params->getSaltLength();
+                ctx.secret = (uint8_t *)params->getSecret();
+                ctx.secretlen = params->getSecretLength();
+                ctx.ad = (uint8_t *)params->getAssocData();
+                ctx.adlen = params->getAssocDataLength();
+
+                ctx.t_cost = params->getTimeCost();
+                ctx.m_cost = params->getMemoryCost();
+                ctx.threads = ctx.lanes = params->getLanes();
+
+                ctx.version = version;
+
+                ctx.allocate_cbk = NULL;
+                ctx.free_cbk = NULL;
+                ctx.flags = 0;
+
+                int err = argon2_ctx(&ctx, (argon2_type)type);
+                if (err) {
+                    throw std::runtime_error(argon2_error_message(err));
+                }
+
+                auto buffer = std::unique_ptr<std::uint8_t[]>(
+                            new std::uint8_t[params->getOutputLength()]);
+                ProcessingUnit pu(&progCtx, params, &device, 1, bySegment,
+                                  precompute);
+                pu.setPassword(0, "password", 8);
+                pu.beginProcessing();
+                pu.endProcessing();
+                pu.getHash(0, buffer.get());
+
+                bool res = std::memcmp(bufferRef.get(), buffer.get(),
+                                       params->getOutputLength()) == 0;
+                if (!res) {
+                    ++failures;
+                    std::cout << "FAIL" << std::endl;
+                } else {
+                    std::cout << "PASS" << std::endl;
+                }
+            }
+        }
+    }
+    if (!failures) {
+        std::cout << "  ALL PASSED" << std::endl;
+    }
+    return failures;
+}
+
+template<class Device, class GlobalContext, class ProgramContext,
+         class ProcessingUnit>
+std::size_t runTestCases(const GlobalContext &global, const Device &device,
+                         Type type, Version version,
+                         const TestCase *casesFrom, const TestCase *casesTo)
+{
+    std::cout << "Running test cases for Argon2";
+    if (type == ARGON2_I) {
+        std::cout << "i";
+    } else if (type == ARGON2_D) {
+        std::cout << "d";
+    } else if (type == ARGON2_ID) {
+        std::cout << "id";
+    }
+    std::cout << " v" << (version == argon2::ARGON2_VERSION_10 ? "1.0" : "1.3")
               << "..." << std::endl;
 
     std::size_t failures = 0;
@@ -111,24 +211,43 @@ int runAllTests(const char *progname, const char *name, std::size_t deviceIndex,
     std::cout << "Using device #" << deviceIndex << ": " << device.getName()
               << std::endl;
 
-    failures += runTests<Device, GlobalContext, ProgramContext, ProcessingUnit>
-            (global, device, ARGON2_I, ARGON2_VERSION_10,
+    failures += runTestCases<Device, GlobalContext, ProgramContext, ProcessingUnit>
+            (global, device, ARGON2_I, argon2::ARGON2_VERSION_10,
              ARRAY_BEGIN(CASES_I_10), ARRAY_END(CASES_I_10));
-    failures += runTests<Device, GlobalContext, ProgramContext, ProcessingUnit>
-            (global, device, ARGON2_I, ARGON2_VERSION_13,
+    failures += runTestCases<Device, GlobalContext, ProgramContext, ProcessingUnit>
+            (global, device, ARGON2_I, argon2::ARGON2_VERSION_13,
              ARRAY_BEGIN(CASES_I_13), ARRAY_END(CASES_I_13));
-    failures += runTests<Device, GlobalContext, ProgramContext, ProcessingUnit>
-            (global, device, ARGON2_D, ARGON2_VERSION_10,
+    failures += runTestCases<Device, GlobalContext, ProgramContext, ProcessingUnit>
+            (global, device, ARGON2_D, argon2::ARGON2_VERSION_10,
              ARRAY_BEGIN(CASES_D_10), ARRAY_END(CASES_D_10));
-    failures += runTests<Device, GlobalContext, ProgramContext, ProcessingUnit>
-            (global, device, ARGON2_D, ARGON2_VERSION_13,
+    failures += runTestCases<Device, GlobalContext, ProgramContext, ProcessingUnit>
+            (global, device, ARGON2_D, argon2::ARGON2_VERSION_13,
              ARRAY_BEGIN(CASES_D_13), ARRAY_END(CASES_D_13));
-    failures += runTests<Device, GlobalContext, ProgramContext, ProcessingUnit>
-            (global, device, ARGON2_ID, ARGON2_VERSION_10,
+    failures += runTestCases<Device, GlobalContext, ProgramContext, ProcessingUnit>
+            (global, device, ARGON2_ID, argon2::ARGON2_VERSION_10,
              ARRAY_BEGIN(CASES_ID_10), ARRAY_END(CASES_ID_10));
-    failures += runTests<Device, GlobalContext, ProgramContext, ProcessingUnit>
-            (global, device, ARGON2_ID, ARGON2_VERSION_13,
+    failures += runTestCases<Device, GlobalContext, ProgramContext, ProcessingUnit>
+            (global, device, ARGON2_ID, argon2::ARGON2_VERSION_13,
              ARRAY_BEGIN(CASES_ID_13), ARRAY_END(CASES_ID_13));
+
+    failures += runParamsVsRef<Device, GlobalContext, ProgramContext, ProcessingUnit>
+            (global, device, ARGON2_I, argon2::ARGON2_VERSION_10,
+             ARRAY_BEGIN(TEST_PARAMS), ARRAY_END(TEST_PARAMS));
+    failures += runParamsVsRef<Device, GlobalContext, ProgramContext, ProcessingUnit>
+            (global, device, ARGON2_I, argon2::ARGON2_VERSION_13,
+             ARRAY_BEGIN(TEST_PARAMS), ARRAY_END(TEST_PARAMS));
+    failures += runParamsVsRef<Device, GlobalContext, ProgramContext, ProcessingUnit>
+            (global, device, ARGON2_D, argon2::ARGON2_VERSION_10,
+             ARRAY_BEGIN(TEST_PARAMS), ARRAY_END(TEST_PARAMS));
+    failures += runParamsVsRef<Device, GlobalContext, ProgramContext, ProcessingUnit>
+            (global, device, ARGON2_D, argon2::ARGON2_VERSION_13,
+             ARRAY_BEGIN(TEST_PARAMS), ARRAY_END(TEST_PARAMS));
+    failures += runParamsVsRef<Device, GlobalContext, ProgramContext, ProcessingUnit>
+            (global, device, ARGON2_ID, argon2::ARGON2_VERSION_10,
+             ARRAY_BEGIN(TEST_PARAMS), ARRAY_END(TEST_PARAMS));
+    failures += runParamsVsRef<Device, GlobalContext, ProgramContext, ProcessingUnit>
+            (global, device, ARGON2_ID, argon2::ARGON2_VERSION_13,
+             ARRAY_BEGIN(TEST_PARAMS), ARRAY_END(TEST_PARAMS));
     return 0;
 }
 
@@ -185,6 +304,10 @@ int main(int, const char * const *argv) {
         parser.printHelp(argv);
         return 0;
     }
+
+#ifdef ARGON2_SELECTABLE_IMPL
+    argon2_select_impl(nullptr, "[libargon2] ");
+#endif
 
     std::size_t failures = 0;
     if (args.mode == "cuda") {
