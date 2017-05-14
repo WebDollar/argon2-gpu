@@ -8,6 +8,11 @@
 namespace argon2 {
 namespace opencl {
 
+static bool isPowerOfTwo(std::uint32_t x)
+{
+    return (UINT32_C(1) << 31) % x == 0;
+}
+
 ProcessingUnit::ProcessingUnit(
         const ProgramContext *programContext, const Argon2Params *params,
         const Device *device, std::size_t batchSize,
@@ -23,7 +28,8 @@ ProcessingUnit::ProcessingUnit(
         setPassword(i, NULL, 0);
     }
 
-    if (runner.getMaxLanesPerBlock() > runner.getMinLanesPerBlock()) {
+    if (runner.getMaxLanesPerBlock() > runner.getMinLanesPerBlock()
+            && isPowerOfTwo(runner.getMaxLanesPerBlock())) {
 #ifndef NDEBUG
         std::cerr << "[INFO] Tuning lanes per block..." << std::endl;
 #endif
@@ -62,7 +68,8 @@ ProcessingUnit::ProcessingUnit(
 
     /* Only tune jobs per block if we hit maximum lanes per block: */
     if (bestLanesPerBlock == runner.getMaxLanesPerBlock()
-            && runner.getMaxJobsPerBlock() > runner.getMinJobsPerBlock()) {
+            && runner.getMaxJobsPerBlock() > runner.getMinJobsPerBlock()
+            && isPowerOfTwo(runner.getMaxJobsPerBlock())) {
 #ifndef NDEBUG
         std::cerr << "[INFO] Tuning jobs per block..." << std::endl;
 #endif
