@@ -34,7 +34,7 @@ Then, to prepare build:
 cmake -DCMAKE_BUILD_TYPE=Release .
 ```
 
-Finally, just run `make` to build the code. Note that to use the OpenCL backend, you need to have the `data` subdirectory in the working directory (if you have the binaries in a different directory, just create a symlink using `ln -s <path_to_repo>/data data`.
+Finally, just run `make` to build the code. Note that to use the OpenCL backend, you need to have the `data` subdirectory in the working directory (if you have the binaries in a different directory, just create a symlink using `ln -s <path_to_repo>/data data`).
 
 ## CUDA kernel variants
 
