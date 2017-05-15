@@ -18,6 +18,24 @@ Argon2-gpu supports all Argon2 variants (Argon2i, Argon2d, and Argon2id) and ver
 
 The CUDA implementation can reach about 40-60 GiB/s (divide by time cost * memory cost  * 1024 B to get hashes per second) on an NVIDIA Tesla K20X. For comparison, a fast Intel Xeon processor can only reach about 10 GiB/s.
 
+## Building
+
+This project uses the [CMake](https://cmake.org/) build system.
+
+First, if you haven't cloned the repository using `git clone --recursive`, you need to run:
+
+```bash
+git submodule update --init
+```
+
+Then, to prepare build:
+
+```bash
+cmake -DCMAKE_BUILD_TYPE=Release .
+```
+
+Finally, just run `make` to build the code. Note that to use the OpenCL backend, you need to have the `data` subdirectory in the working directory (if you have the binaries in a different directory, just create a symlink using `ln -s <path_to_repo>/data data`.
+
 ## CUDA kernel variants
 
 The CUDA implementation has three variants, which are currently implemented in separate branches:
