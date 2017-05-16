@@ -10,7 +10,7 @@ namespace opencl {
 
 static bool isPowerOfTwo(std::uint32_t x)
 {
-    return (UINT32_C(1) << 31) % x == 0;
+    return (x & (x - 1)) == 0;
 }
 
 ProcessingUnit::ProcessingUnit(
