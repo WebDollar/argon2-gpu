@@ -87,7 +87,8 @@ target_link_libraries(argon2-gpu-bench
     argon2-cuda argon2-opencl argon2 -lOpenCL
 )
 
-add_test(test argon2-gpu-test)
+add_test(argon2-gpu-test-opencl argon2-gpu-test -m opencl)
+add_test(argon2-gpu-test-cuda argon2-gpu-test -m cuda)
 
 install(
     TARGETS argon2-gpu-common argon2-opencl argon2-cuda
