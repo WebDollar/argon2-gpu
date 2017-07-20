@@ -6,6 +6,7 @@ set(LIBRARY_INSTALL_DIR /usr/local/lib)
 set(INCLUDE_INSTALL_DIR /usr/local/include)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+enable_testing()
 
 find_package(CUDA REQUIRED)
 
