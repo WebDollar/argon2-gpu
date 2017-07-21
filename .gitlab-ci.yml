@@ -8,8 +8,6 @@ cache:
         - "build/"
 
 build:
-    only:
-        - ci
     stage: build
     script:
         - mkdir -p build
