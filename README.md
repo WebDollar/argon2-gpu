@@ -1,4 +1,4 @@
-# argon2-gpu
+# argon2-gpu [![build status](https://gitlab.com/omos/argon2-gpu/badges/master/build.svg)](https://gitlab.com/omos/argon2-gpu/commits/master)
 
 A proof-of-concept GPU password cracker for Argon2 hashes.
 
