@@ -8,28 +8,28 @@ cache:
         - "build/"
 
 gcc-cuda:
-    stage: Build
+    stage: build
     script:
         - export COMPILER=gcc
         - export CUDA=cuda
         - . scripts/ci.sh
 
 gcc-nocuda:
-    stage: Build
+    stage: build
     script:
         - export COMPILER=gcc
         - export CUDA=nocuda
         - . scripts/ci.sh
 
 clang-cuda:
-    stage: Build
+    stage: build
     script:
         - export COMPILER=clang
         - export CUDA=cuda
         - . scripts/ci.sh
 
 clang-nocuda:
-    stage: Build
+    stage: build
     script:
         - export COMPILER=clang
         - export CUDA=nocuda
