@@ -44,7 +44,18 @@ fi
 MAX_WORK=$((16 * 1024))
 
 echo "mode,kernel,version,type,precompute,t_cost,m_cost,lanes,ns_per_hash,batch_size"
-for mode in $modes; do
+for mode_spec in $modes; do
+    case "$mode_spec" in
+        *:*)
+            mode=${mode_spec%%:*}
+            device=${mode_spec#*:}
+            device=${device:-0}
+            ;;
+        *)
+            mode="$mode_spec"
+            device=0
+    esac
+    
     if [ $mode != 'cpu' ]; then
         kernels2="$kernels"
     else
@@ -84,7 +95,7 @@ for mode in $modes; do
                                     ns_per_hash=$(./argon2-gpu-bench \
                                         -t $type -v $version \
                                         $precompute_flag \
-                                        -m $mode -k $kernel \
+                                        -m $mode -d $device -k $kernel \
                                         -b $batch_size -s $samples \
                                         -T $t_cost -M $m_cost -L $lanes \
                                         -o ns-per-hash --output-mode mean)
