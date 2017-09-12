@@ -8,11 +8,25 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 enable_testing()
 
-find_package(CUDA REQUIRED)
+set(CUDA_FOUND FALSE)
 
-set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};
-    -std=c++11;-O3;--ptxas-options=-v;-arch sm_30;-lineinfo
-)
+if(NOT NO_CUDA)
+    find_package(CUDA)
+endif()
+
+if(CUDA_FOUND)
+    message("INFO: Using CUDA version ${CUDA_VERSION}")
+    add_definitions(-DHAVE_CUDA=1)
+else()
+    message("INFO: Building without CUDA support")
+    add_definitions(-DHAVE_CUDA=0)
+endif()
+
+if(CUDA_FOUND)
+    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};
+        -std=c++11;-O3;--ptxas-options=-v;-arch sm_30;-lineinfo
+    )
+endif()
 
 add_subdirectory(ext/argon2)
 
@@ -29,20 +43,27 @@ target_include_directories(argon2-gpu-common PRIVATE
     lib/argon2-gpu-common
 )
 
-cuda_add_library(argon2-cuda SHARED
-    lib/argon2-cuda/device.cpp
-    lib/argon2-cuda/globalcontext.cpp
-    lib/argon2-cuda/programcontext.cpp
-    lib/argon2-cuda/processingunit.cpp
-    lib/argon2-cuda/kernels.cu
+if(CUDA_FOUND)
+    cuda_add_library(argon2-cuda SHARED
+        lib/argon2-cuda/device.cpp
+        lib/argon2-cuda/globalcontext.cpp
+        lib/argon2-cuda/programcontext.cpp
+        lib/argon2-cuda/processingunit.cpp
+        lib/argon2-cuda/kernels.cu
+    )
+else()
+    add_library(argon2-cuda SHARED
+        lib/argon2-cuda/nocuda.cpp
+    )
+endif()
+
+target_include_directories(argon2-cuda PRIVATE
+    include/argon2-cuda
+    lib/argon2-cuda
 )
 target_include_directories(argon2-cuda INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
-)
-target_include_directories(argon2-cuda PRIVATE
-    include/argon2-cuda
-    lib/argon2-cuda
 )
 target_link_libraries(argon2-cuda argon2-gpu-common)
 

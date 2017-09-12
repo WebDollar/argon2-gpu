@@ -34,7 +34,11 @@ private:
 public:
     const std::vector<Device> &getAllDevices() const { return devices; }
 
+#if HAVE_CUDA
     GlobalContext();
+#else
+    GlobalContext() : devices() {}
+#endif /* HAVE_CUDA */
 };
 
 } // namespace cuda
