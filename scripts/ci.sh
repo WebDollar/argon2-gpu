@@ -12,10 +12,10 @@ esac
 
 case $CUDA in
     cuda)
-        NO_CUDA=TRUE
+        NO_CUDA=FALSE
         ;;
     nocuda)
-        NO_CUDA=FALSE
+        NO_CUDA=TRUE
         ;;
     *)
         echo "ERROR: Invalid CUDA mode: $COMPILER" 1>&2
