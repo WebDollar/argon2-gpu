@@ -5,21 +5,32 @@ before_script:
 
 cache:
     paths:
-        - "build-cuda/"
-        - "build-nocuda/"
+        - "build/"
 
-cuda:
+gcc-cuda:
+    stage: Build
     script:
-        - mkdir -p build-cuda
-        - cd build
-        - cmake ..
-        - make
-        #- CTEST_OUTPUT_ON_FAILURE=1 make test
+        - export COMPILER=gcc
+        - export CUDA=cuda
+        - . scripts/ci.sh
 
-nocuda:
+gcc-nocuda:
+    stage: Build
     script:
-        - mkdir -p build-nocuda
-        - cd build
-        - cmake -DNO_CUDA=TRUE ..
-        - make
-        #- CTEST_OUTPUT_ON_FAILURE=1 make test
+        - export COMPILER=gcc
+        - export CUDA=nocuda
+        - . scripts/ci.sh
+
+clang-cuda:
+    stage: Build
+    script:
+        - export COMPILER=clang
+        - export CUDA=cuda
+        - . scripts/ci.sh
+
+clang-nocuda:
+    stage: Build
+    script:
+        - export COMPILER=clang
+        - export CUDA=nocuda
+        - . scripts/ci.sh
