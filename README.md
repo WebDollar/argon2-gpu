@@ -36,6 +36,12 @@ cmake -DCMAKE_BUILD_TYPE=Release .
 
 Finally, just run `make` to build the code. Note that to use the OpenCL backend, you need to have the `data` subdirectory in the working directory (if you have the binaries in a different directory, just create a symlink using `ln -s <path_to_repo>/data data`).
 
+### Building without CUDA support
+
+To build without CUDA support, just add `-DNO_CUDA=TRUE` to the CMake command line. In this case the CUDA backend will always report 0 devices.
+
+If CMake fails to find a usable CUDA installation, the project will be automatically built without CUDA support.
+
 ## CUDA kernel variants
 
 The CUDA implementation has three variants, which are currently implemented in separate branches:
