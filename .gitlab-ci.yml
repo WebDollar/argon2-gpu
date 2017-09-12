@@ -5,20 +5,21 @@ before_script:
 
 cache:
     paths:
-        - "build/"
+        - "build-cuda/"
+        - "build-nocuda/"
 
-build:
-    stage: build
+cuda:
     script:
-        - mkdir -p build
+        - mkdir -p build-cuda
         - cd build
         - cmake ..
         - make
+        #- CTEST_OUTPUT_ON_FAILURE=1 make test
 
-#test:
-    #only:
-        #- ci
-    #stage: test
-    #script:
-        #- cd build
+nocuda:
+    script:
+        - mkdir -p build-nocuda
+        - cd build
+        - cmake -DNO_CUDA=TRUE ..
+        - make
         #- CTEST_OUTPUT_ON_FAILURE=1 make test
