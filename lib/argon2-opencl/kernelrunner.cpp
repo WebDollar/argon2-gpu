@@ -181,7 +181,7 @@ float KernelRunner::finish()
     end.wait();
 
     cl_ulong nsStart = start.getProfilingInfo<CL_PROFILING_COMMAND_END>();
-    cl_ulong nsEnd   = end.getProfilingInfo<CL_PROFILING_COMMAND_START>();
+    cl_ulong nsEnd   = end.getProfilingInfo<CL_PROFILING_COMMAND_END>();
 
     return (nsEnd - nsStart) / (1000.0F * 1000.0F);
 }
