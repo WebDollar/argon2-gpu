@@ -417,17 +417,19 @@ __kernel void argon2_precompute_kernel(
     uint block = block_id % segment_addr_blocks;
     uint segment = block_id / segment_addr_blocks;
 
-    uint slice, pass, pass_id, lane;
+    uint slice, pass, lane;
 #if ARGON2_TYPE == ARGON2_ID
-        slice = segment % (ARGON2_SYNC_POINTS / 2);
-        lane = segment / (ARGON2_SYNC_POINTS / 2);
-        pass_id = pass = 0;
+    slice = segment % (ARGON2_SYNC_POINTS / 2);
+    lane = segment / (ARGON2_SYNC_POINTS / 2);
+    pass = 0;
 #else
-        slice = segment % ARGON2_SYNC_POINTS;
-        pass_id = segment / ARGON2_SYNC_POINTS;
+    uint pass_id;
 
-        pass = pass_id % passes;
-        lane = pass_id / passes;
+    slice = segment % ARGON2_SYNC_POINTS;
+    pass_id = segment / ARGON2_SYNC_POINTS;
+
+    pass = pass_id % passes;
+    lane = pass_id / passes;
 #endif
 
     struct block_th addr, tmp;
