@@ -813,15 +813,12 @@ KernelRunner::KernelRunner(uint32_t type, uint32_t version, uint32_t passes,
     uint32_t memorySize = lanes * segmentBlocks * ARGON2_SYNC_POINTS
             * ARGON2_BLOCK_SIZE * batchSize;
 
-    CudaException::check(cudaMallocManaged(&memory, memorySize,
-                                           cudaMemAttachHost));
+    CudaException::check(cudaMalloc(&memory, memorySize));
 
     CudaException::check(cudaEventCreate(&start));
     CudaException::check(cudaEventCreate(&end));
 
     CudaException::check(cudaStreamCreate(&stream));
-    CudaException::check(cudaStreamAttachMemAsync(stream, memory));
-    CudaException::check(cudaStreamSynchronize(stream));
 
     if ((type == ARGON2_I || type == ARGON2_ID) && precompute) {
         uint32_t segments =
@@ -886,6 +883,30 @@ KernelRunner::~KernelRunner()
     if (refs != nullptr) {
         cudaFree(refs);
     }
+}
+
+void KernelRunner::writeInputMemory(uint32_t jobId, const void *buffer)
+{
+    std::size_t memorySize = lanes * segmentBlocks * ARGON2_SYNC_POINTS
+            * ARGON2_BLOCK_SIZE;
+    std::size_t size = lanes * 2 * ARGON2_BLOCK_SIZE;
+    std::size_t offset = memorySize * jobId;
+    auto mem = static_cast<uint8_t *>(memory) + offset;
+    CudaException::check(cudaMemcpyAsync(mem, buffer, size,
+                                         cudaMemcpyHostToDevice, stream));
+    CudaException::check(cudaStreamSynchronize(stream));
+}
+
+void KernelRunner::readOutputMemory(uint32_t jobId, void *buffer)
+{
+    std::size_t memorySize = lanes * segmentBlocks * ARGON2_SYNC_POINTS
+            * ARGON2_BLOCK_SIZE;
+    std::size_t size = lanes * ARGON2_BLOCK_SIZE;
+    std::size_t offset = memorySize * (jobId + 1) - size;
+    auto mem = static_cast<uint8_t *>(memory) + offset;
+    CudaException::check(cudaMemcpyAsync(buffer, mem, size,
+                                         cudaMemcpyDeviceToHost, stream));
+    CudaException::check(cudaStreamSynchronize(stream));
 }
 
 void KernelRunner::runKernelSegment(uint32_t lanesPerBlock,
