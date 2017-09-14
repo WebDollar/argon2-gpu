@@ -23,7 +23,7 @@ private:
     void incrementCounter(std::uint64_t inc);
 
 public:
-    Blake2b() { }
+    Blake2b() : h(), t(), buf(), bufLen(0) { }
 
     void init(std::size_t outlen);
     void update(const void *in, std::size_t inLen);
