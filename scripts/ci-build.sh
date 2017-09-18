@@ -24,6 +24,8 @@ esac
 
 mkdir -p build/$COMPILER-$CUDA || exit 1
 cd build/$COMPILER-$CUDA || exit 1
+
+ln -s ../../data data || exit 1
+
 cmake -DNO_CUDA=$NO_CUDA ../.. || exit 1
 make || exit 1
-#CTEST_OUTPUT_ON_FAILURE=1 make test || exit 1
