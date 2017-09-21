@@ -27,5 +27,5 @@ cd build/$COMPILER-$CUDA || exit 1
 
 ln -s ../../data data || exit 1
 
-cmake -DNO_CUDA=$NO_CUDA ../.. || exit 1
+cmake -DNO_CUDA=$NO_CUDA -DCMAKE_BUILD_TYPE=Release ../.. || exit 1
 make || exit 1
