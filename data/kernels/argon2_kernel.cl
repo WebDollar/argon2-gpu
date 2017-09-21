@@ -95,30 +95,28 @@ struct block_th {
     ulong a, b, c, d;
 };
 
+ulong mask_from_bit(uint test, uint ref)
+{
+    uint x = (int)(((uint)1 << (31 - test)) << ref) >> 31;
+    return u64_build(x, x);
+}
+
 ulong block_th_get(const struct block_th *b, uint idx)
 {
     ulong res = 0;
-    res = idx == 0 ? b->a : res;
-    res = idx == 1 ? b->b : res;
-    res = idx == 2 ? b->c : res;
-    res = idx == 3 ? b->d : res;
+    res |= mask_from_bit(idx, 0) & b->a;
+    res |= mask_from_bit(idx, 1) & b->b;
+    res |= mask_from_bit(idx, 2) & b->c;
+    res |= mask_from_bit(idx, 3) & b->d;
     return res;
 }
 
 void block_th_set(struct block_th *b, uint idx, ulong v)
 {
-    b->a = idx == 0 ? v : b->a;
-    b->b = idx == 1 ? v : b->b;
-    b->c = idx == 2 ? v : b->c;
-    b->d = idx == 3 ? v : b->d;
-}
-
-void block_th_xor(struct block_th *b, uint idx, ulong v)
-{
-    b->a ^= idx == 0 ? v : 0;
-    b->b ^= idx == 1 ? v : 0;
-    b->c ^= idx == 2 ? v : 0;
-    b->d ^= idx == 3 ? v : 0;
+    b->a ^= mask_from_bit(idx, 0) & (v ^ b->a);
+    b->b ^= mask_from_bit(idx, 1) & (v ^ b->b);
+    b->c ^= mask_from_bit(idx, 2) & (v ^ b->c);
+    b->d ^= mask_from_bit(idx, 3) & (v ^ b->d);
 }
 
 void move_block(struct block_th *dst, const struct block_th *src)

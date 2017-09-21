@@ -75,30 +75,28 @@ struct block_th {
     uint64_t a, b, c, d;
 };
 
+__device__ uint64_t mask_from_bit(uint32_t test, uint32_t ref)
+{
+    uint32_t x = (int32_t)((UINT32_C(1) << (31 - test)) << ref) >> 31;
+    return u64_build(x, x);
+}
+
 __device__ uint64_t block_th_get(const struct block_th *b, uint32_t idx)
 {
     uint64_t res = 0;
-    res = idx == 0 ? b->a : res;
-    res = idx == 1 ? b->b : res;
-    res = idx == 2 ? b->c : res;
-    res = idx == 3 ? b->d : res;
+    res |= mask_from_bit(idx, 0) & b->a;
+    res |= mask_from_bit(idx, 1) & b->b;
+    res |= mask_from_bit(idx, 2) & b->c;
+    res |= mask_from_bit(idx, 3) & b->d;
     return res;
 }
 
 __device__ void block_th_set(struct block_th *b, uint32_t idx, uint64_t v)
 {
-    b->a = idx == 0 ? v : b->a;
-    b->b = idx == 1 ? v : b->b;
-    b->c = idx == 2 ? v : b->c;
-    b->d = idx == 3 ? v : b->d;
-}
-
-__device__ void block_th_xor(struct block_th *b, uint32_t idx, uint64_t v)
-{
-    b->a ^= idx == 0 ? v : 0;
-    b->b ^= idx == 1 ? v : 0;
-    b->c ^= idx == 2 ? v : 0;
-    b->d ^= idx == 3 ? v : 0;
+    b->a ^= mask_from_bit(idx, 0) & (v ^ b->a);
+    b->b ^= mask_from_bit(idx, 1) & (v ^ b->b);
+    b->c ^= mask_from_bit(idx, 2) & (v ^ b->c);
+    b->d ^= mask_from_bit(idx, 3) & (v ^ b->d);
 }
 
 __device__ void move_block(struct block_th *dst, const struct block_th *src)
