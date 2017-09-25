@@ -159,10 +159,29 @@ void store_block(__global struct block_g *dst, const struct block_th *src,
     dst->data[3 * THREADS_PER_LANE + thread] = src->d;
 }
 
+#ifdef cl_amd_media_ops
+#pragma OPENCL EXTENSION cl_amd_media_ops : enable
+
+ulong rotr64(ulong x, ulong n)
+{
+    uint lo = u64_lo(x);
+    uint hi = u64_hi(x);
+    uint r_lo, r_hi;
+    if (n < 32) {
+        r_lo = amd_bitalign(hi, lo, (uint)n);
+        r_hi = amd_bitalign(lo, hi, (uint)n);
+    } else {
+        r_lo = amd_bitalign(lo, hi, (uint)n - 32);
+        r_hi = amd_bitalign(hi, lo, (uint)n - 32);
+    }
+    return u64_build(r_hi, r_lo);
+}
+#else
 ulong rotr64(ulong x, ulong n)
 {
     return rotate(x, 64 - n);
 }
+#endif
 
 ulong f(ulong x, ulong y)
 {
