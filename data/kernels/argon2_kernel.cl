@@ -550,7 +550,7 @@ __kernel void argon2_kernel_segment_precompute(
     uint lane_blocks = ARGON2_SYNC_POINTS * segment_blocks;
 
     /* select job's memory region: */
-    memory += job_id * lanes * lane_blocks;
+    memory += (size_t)job_id * lanes * lane_blocks;
 
     struct block_th prev, tmp;
 
@@ -608,7 +608,7 @@ __kernel void argon2_kernel_oneshot_precompute(
     uint lane_blocks = ARGON2_SYNC_POINTS * segment_blocks;
 
     /* select job's memory region: */
-    memory += job_id * lanes * lane_blocks;
+    memory += (size_t)job_id * lanes * lane_blocks;
 
     struct block_th prev, tmp;
 
@@ -709,7 +709,7 @@ __kernel void argon2_kernel_segment(
     uint lane_blocks = ARGON2_SYNC_POINTS * segment_blocks;
 
     /* select job's memory region: */
-    memory += job_id * lanes * lane_blocks;
+    memory += (size_t)job_id * lanes * lane_blocks;
 
     struct block_th prev, addr, tmp;
     uint thread_input;
@@ -791,7 +791,7 @@ __kernel void argon2_kernel_oneshot(
     uint lane_blocks = ARGON2_SYNC_POINTS * segment_blocks;
 
     /* select job's memory region: */
-    memory += job_id * lanes * lane_blocks;
+    memory += (size_t)job_id * lanes * lane_blocks;
 
     struct block_th prev, addr, tmp;
     uint thread_input;

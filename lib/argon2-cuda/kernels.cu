@@ -485,7 +485,7 @@ __global__ void argon2_kernel_segment_precompute(
     uint32_t lane_blocks = ARGON2_SYNC_POINTS * segment_blocks;
 
     /* select job's memory region: */
-    memory += job_id * lanes * lane_blocks;
+    memory += (size_t)job_id * lanes * lane_blocks;
 
     struct block_th prev, tmp;
 
@@ -543,7 +543,7 @@ __global__ void argon2_kernel_oneshot_precompute(
     uint32_t lane_blocks = ARGON2_SYNC_POINTS * segment_blocks;
 
     /* select job's memory region: */
-    memory += job_id * lanes * lane_blocks;
+    memory += (size_t)job_id * lanes * lane_blocks;
 
     struct block_th prev, tmp;
 
@@ -638,7 +638,7 @@ __global__ void argon2_kernel_segment(
     uint32_t lane_blocks = ARGON2_SYNC_POINTS * segment_blocks;
 
     /* select job's memory region: */
-    memory += job_id * lanes * lane_blocks;
+    memory += (size_t)job_id * lanes * lane_blocks;
 
     struct block_th prev, addr, tmp;
     uint32_t thread_input;
@@ -721,7 +721,7 @@ __global__ void argon2_kernel_oneshot(
     uint32_t lane_blocks = ARGON2_SYNC_POINTS * segment_blocks;
 
     /* select job's memory region: */
-    memory += job_id * lanes * lane_blocks;
+    memory += (size_t)job_id * lanes * lane_blocks;
 
     struct block_th prev, addr, tmp;
     uint32_t thread_input;
@@ -829,7 +829,7 @@ KernelRunner::KernelRunner(uint32_t type, uint32_t version, uint32_t passes,
                 ? lanes * (ARGON2_SYNC_POINTS / 2)
                 : passes * lanes * ARGON2_SYNC_POINTS;
 
-        uint32_t refsSize = segments * segmentBlocks * sizeof(struct ref);
+        size_t refsSize = segments * segmentBlocks * sizeof(struct ref);
 
 #ifndef NDEBUG
         std::cerr << "[INFO] Allocating " << refsSize << " bytes for refs..."
@@ -857,7 +857,7 @@ void KernelRunner::precomputeRefs()
     dim3 blocks = dim3(1, segments * segmentAddrBlocks);
     dim3 threads = dim3(THREADS_PER_LANE);
 
-    uint32_t shmemSize = sizeof(struct u64_shuffle_buf);
+    size_t shmemSize = sizeof(struct u64_shuffle_buf);
     if (type == ARGON2_I) {
         argon2_precompute_kernel<ARGON2_I>
             <<<blocks, threads, shmemSize, stream>>>(
@@ -890,10 +890,10 @@ KernelRunner::~KernelRunner()
 
 void KernelRunner::writeInputMemory(uint32_t jobId, const void *buffer)
 {
-    std::size_t memorySize = lanes * segmentBlocks * ARGON2_SYNC_POINTS
-            * ARGON2_BLOCK_SIZE;
-    std::size_t size = lanes * 2 * ARGON2_BLOCK_SIZE;
-    std::size_t offset = memorySize * static_cast<size_t>(jobId);
+    std::size_t memorySize = static_cast<size_t>(lanes) * segmentBlocks
+            * ARGON2_SYNC_POINTS * ARGON2_BLOCK_SIZE;
+    std::size_t size = static_cast<size_t>(lanes) * 2 * ARGON2_BLOCK_SIZE;
+    std::size_t offset = memorySize * jobId;
     auto mem = static_cast<uint8_t *>(memory) + offset;
     CudaException::check(cudaMemcpyAsync(mem, buffer, size,
                                          cudaMemcpyHostToDevice, stream));
@@ -902,10 +902,10 @@ void KernelRunner::writeInputMemory(uint32_t jobId, const void *buffer)
 
 void KernelRunner::readOutputMemory(uint32_t jobId, void *buffer)
 {
-    std::size_t memorySize = lanes * segmentBlocks * ARGON2_SYNC_POINTS
-            * ARGON2_BLOCK_SIZE;
-    std::size_t size = lanes * ARGON2_BLOCK_SIZE;
-    std::size_t offset = memorySize * static_cast<size_t>(jobId + 1) - size;
+    std::size_t memorySize = static_cast<size_t>(lanes) * segmentBlocks
+            * ARGON2_SYNC_POINTS * ARGON2_BLOCK_SIZE;
+    std::size_t size = static_cast<size_t>(lanes) * ARGON2_BLOCK_SIZE;
+    std::size_t offset = memorySize * (jobId + 1) - size;
     auto mem = static_cast<uint8_t *>(memory) + offset;
     CudaException::check(cudaMemcpyAsync(buffer, mem, size,
                                          cudaMemcpyDeviceToHost, stream));

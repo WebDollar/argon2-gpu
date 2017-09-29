@@ -44,7 +44,7 @@ KernelRunner::KernelRunner(const ProgramContext *programContext,
                 ? lanes * (ARGON2_SYNC_POINTS / 2)
                 : passes * lanes * ARGON2_SYNC_POINTS;
 
-        std::uint32_t refsSize = segments * segmentBlocks * sizeof(cl_uint) * 2;
+        std::size_t refsSize = segments * segmentBlocks * sizeof(cl_uint) * 2;
 
 #ifndef NDEBUG
         std::cerr << "[INFO] Allocating " << refsSize << " bytes for refs..."
@@ -94,7 +94,7 @@ void KernelRunner::precomputeRefs()
             ? lanes * (ARGON2_SYNC_POINTS / 2)
             : passes * lanes * ARGON2_SYNC_POINTS;
 
-    std::uint32_t shmemSize = THREADS_PER_LANE * sizeof(cl_uint) * 2;
+    std::size_t shmemSize = THREADS_PER_LANE * sizeof(cl_uint) * 2;
 
     cl::Kernel kernel = cl::Kernel(programContext->getProgram(),
                                    "argon2_precompute_kernel");
@@ -126,7 +126,8 @@ void KernelRunner::unmapInputMemory(void *memory)
 void *KernelRunner::mapOutputMemory(std::uint32_t jobId)
 {
     std::size_t memorySize = params->getMemorySize();
-    std::size_t mappedSize = params->getLanes() * ARGON2_BLOCK_SIZE;
+    std::size_t mappedSize = static_cast<std::size_t>(params->getLanes())
+            * ARGON2_BLOCK_SIZE;
     std::size_t mappedOffset = memorySize * (jobId + 1) - mappedSize;
     return queue.enqueueMapBuffer(memoryBuffer, true, CL_MAP_READ,
                                   mappedOffset, mappedSize);
@@ -161,9 +162,8 @@ void KernelRunner::run(std::uint32_t lanesPerBlock, std::uint32_t jobsPerBlock)
 
     queue.enqueueMarker(&start);
 
-    std::uint32_t shmemSize =
-            THREADS_PER_LANE * lanesPerBlock * jobsPerBlock *
-            sizeof(cl_uint) * 2;
+    std::size_t shmemSize = THREADS_PER_LANE * lanesPerBlock * jobsPerBlock
+            * sizeof(cl_uint) * 2;
     kernel.setArg<cl::LocalSpaceArg>(0, { shmemSize });
     if (bySegment) {
         for (std::uint32_t pass = 0; pass < passes; pass++) {
