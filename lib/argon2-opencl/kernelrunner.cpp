@@ -29,6 +29,12 @@ KernelRunner::KernelRunner(const ProgramContext *programContext,
 
     queue = cl::CommandQueue(context, device->getCLDevice(),
                              CL_QUEUE_PROFILING_ENABLE);
+
+#ifndef NDEBUG
+        std::cerr << "[INFO] Allocating " << memorySize << " bytes for memory..."
+                  << std::endl;
+#endif
+
     memoryBuffer = cl::Buffer(context, CL_MEM_READ_WRITE, memorySize);
 
     Type type = programContext->getArgon2Type();

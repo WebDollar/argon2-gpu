@@ -811,6 +811,11 @@ KernelRunner::KernelRunner(uint32_t type, uint32_t version, uint32_t passes,
     uint32_t memorySize = lanes * segmentBlocks * ARGON2_SYNC_POINTS
             * ARGON2_BLOCK_SIZE * batchSize;
 
+#ifndef NDEBUG
+        std::cerr << "[INFO] Allocating " << memorySize << " bytes for memory..."
+                  << std::endl;
+#endif
+
     CudaException::check(cudaMalloc(&memory, memorySize));
 
     CudaException::check(cudaEventCreate(&start));
