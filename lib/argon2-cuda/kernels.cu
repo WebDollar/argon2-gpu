@@ -808,8 +808,8 @@ KernelRunner::KernelRunner(uint32_t type, uint32_t version, uint32_t passes,
       refs(nullptr), start(nullptr), end(nullptr)
 {
     // FIXME: check overflow:
-    uint32_t memorySize = lanes * segmentBlocks * ARGON2_SYNC_POINTS
-            * ARGON2_BLOCK_SIZE * batchSize;
+    size_t memorySize = lanes * segmentBlocks * ARGON2_SYNC_POINTS
+            * ARGON2_BLOCK_SIZE * static_cast<size_t>(batchSize);
 
 #ifndef NDEBUG
         std::cerr << "[INFO] Allocating " << memorySize << " bytes for memory..."
@@ -893,7 +893,7 @@ void KernelRunner::writeInputMemory(uint32_t jobId, const void *buffer)
     std::size_t memorySize = lanes * segmentBlocks * ARGON2_SYNC_POINTS
             * ARGON2_BLOCK_SIZE;
     std::size_t size = lanes * 2 * ARGON2_BLOCK_SIZE;
-    std::size_t offset = memorySize * jobId;
+    std::size_t offset = memorySize * static_cast<size_t>(jobId);
     auto mem = static_cast<uint8_t *>(memory) + offset;
     CudaException::check(cudaMemcpyAsync(mem, buffer, size,
                                          cudaMemcpyHostToDevice, stream));
@@ -905,7 +905,7 @@ void KernelRunner::readOutputMemory(uint32_t jobId, void *buffer)
     std::size_t memorySize = lanes * segmentBlocks * ARGON2_SYNC_POINTS
             * ARGON2_BLOCK_SIZE;
     std::size_t size = lanes * ARGON2_BLOCK_SIZE;
-    std::size_t offset = memorySize * (jobId + 1) - size;
+    std::size_t offset = memorySize * static_cast<size_t>(jobId + 1) - size;
     auto mem = static_cast<uint8_t *>(memory) + offset;
     CudaException::check(cudaMemcpyAsync(buffer, mem, size,
                                          cudaMemcpyDeviceToHost, stream));

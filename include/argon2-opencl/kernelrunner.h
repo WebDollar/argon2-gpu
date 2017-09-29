@@ -22,7 +22,7 @@ private:
     cl::Buffer memoryBuffer, refsBuffer;
     cl::Event start, end;
 
-    std::uint32_t memorySize;
+    std::size_t memorySize;
 
     void precomputeRefs();
 

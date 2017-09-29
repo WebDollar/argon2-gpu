@@ -20,7 +20,7 @@ KernelRunner::KernelRunner(const ProgramContext *programContext,
                            std::uint32_t batchSize, bool bySegment, bool precompute)
     : programContext(programContext), params(params), batchSize(batchSize),
       bySegment(bySegment), precompute(precompute),
-      memorySize(params->getMemorySize() * batchSize)
+      memorySize(params->getMemorySize() * static_cast<std::size_t>(batchSize))
 {
     auto context = programContext->getContext();
     std::uint32_t passes = params->getTimeCost();
