@@ -808,8 +808,8 @@ KernelRunner::KernelRunner(uint32_t type, uint32_t version, uint32_t passes,
       refs(nullptr), start(nullptr), end(nullptr)
 {
     // FIXME: check overflow:
-    size_t memorySize = lanes * segmentBlocks * ARGON2_SYNC_POINTS
-            * ARGON2_BLOCK_SIZE * static_cast<size_t>(batchSize);
+    size_t memorySize = static_cast<size_t>(lanes) * segmentBlocks
+            * ARGON2_SYNC_POINTS * ARGON2_BLOCK_SIZE * batchSize;
 
 #ifndef NDEBUG
         std::cerr << "[INFO] Allocating " << memorySize << " bytes for memory..."
