@@ -23,8 +23,8 @@ fi
 
 work_factor="$1"; shift 1
 max_memory_gb="$1"; shift 1
-min_threads="$1"; shift 1
-max_threads="$1"; shift 1
+min_parallel="$1"; shift 1
+max_parallel="$1"; shift 1
 min_t_cost="$1"; shift 1
 min_m_cost="$1"; shift 1
 samples="$1"; shift 1
@@ -41,12 +41,12 @@ for commit in $@; do
     make || exit 1
     
     "$dirname/run-benchmark-t_cost.sh" "$work_factor" "$max_memory_gb" \
-        "$max_threads" "$min_m_cost" "$samples" \
+        "$max_parallel" "$min_m_cost" "$samples" \
         "$modes" "$kernels" "$versions" "$types" "$precomputes" \
         | tee "$dst_dir/bench-t_cost-$bench_id-$commit.csv" || exit 1
     
     "$dirname/run-benchmark-m_cost.sh" "$work_factor" "$max_memory_gb" \
-        "$min_threads" "$max_threads" "$min_t_cost" "$samples" \
+        "$min_parallel" "$max_parallel" "$min_t_cost" "$samples" \
         "$modes" "$kernels" "$versions" "$types" "$precomputes" \
         | tee "$dst_dir/bench-m_cost-$bench_id-$commit.csv" || exit 1
 done

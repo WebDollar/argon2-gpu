@@ -2,7 +2,7 @@
 
 work_factor="$1"; shift 1
 max_memory_gb="$1"; shift 1
-max_threads="$1"; shift 1
+max_parallel="$1"; shift 1
 min_m_cost="$1"; shift 1
 samples="$1"; shift 1
 modes="$1"; shift 1
@@ -19,8 +19,8 @@ if [ -z "$max_memory_gb" ]; then
     max_memory_gb=32
 fi
 
-if [ -z "$max_threads" ]; then
-    max_threads=1024
+if [ -z "$max_parallel" ]; then
+    max_parallel=1024
 fi
 
 if [ -z "$min_m_cost" ]; then
@@ -85,7 +85,7 @@ for mode_spec in $modes; do
                     fi
                     
                     for (( lanes = 1; lanes <= 32; lanes *= 2 )); do
-                        batch_size=$max_threads
+                        batch_size=$max_parallel
                         if [ $batch_size -ge $lanes ]; then
                             (( batch_size /= $lanes ))
                         else
