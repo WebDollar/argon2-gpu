@@ -77,7 +77,7 @@ struct block_th {
 
 __device__ uint64_t cmpeq_mask(uint32_t test, uint32_t ref)
 {
-    uint32_t x = (int32_t)((UINT32_C(1) << (31 - test)) << ref) >> 31;
+    uint32_t x = -(uint32_t)(test == ref);
     return u64_build(x, x);
 }
 

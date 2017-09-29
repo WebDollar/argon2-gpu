@@ -97,7 +97,7 @@ struct block_th {
 
 ulong cmpeq_mask(uint test, uint ref)
 {
-    uint x = (int)(((uint)1 << (31 - test)) << ref) >> 31;
+    uint x = -(uint)(test == ref);
     return u64_build(x, x);
 }
 
