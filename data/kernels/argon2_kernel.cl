@@ -292,12 +292,12 @@ void transpose(struct block_th *block, uint thread,
 {
     uint thread_group = (thread & 0x0C) >> 2;
     for (uint i = 1; i < QWORDS_PER_THREAD; i++) {
-        uint src_group = thread_group ^ i;
-        uint thr = (src_group << 2) | (thread & 0x13);
+        uint thr = (i << 2) ^ thread;
+        uint idx = thread_group ^ i;
 
-        ulong v = block_th_get(block, src_group);
+        ulong v = block_th_get(block, idx);
         v = u64_shuffle(v, thr, thread, buf);
-        block_th_set(block, src_group, v);
+        block_th_set(block, idx, v);
     }
 }
 

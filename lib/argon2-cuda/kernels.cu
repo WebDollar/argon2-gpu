@@ -192,12 +192,12 @@ __device__ void transpose(struct block_th *block, uint32_t thread,
 {
     uint32_t thread_group = (thread & 0x0C) >> 2;
     for (uint32_t i = 1; i < QWORDS_PER_THREAD; i++) {
-        uint32_t src_group = thread_group ^ i;
-        uint32_t thr = (src_group << 2) | (thread & 0x13);
+        uint32_t thr = (i << 2) ^ thread;
+        uint32_t idx = thread_group ^ i;
 
-        uint64_t v = block_th_get(block, src_group);
+        uint64_t v = block_th_get(block, idx);
         v = u64_shuffle(v, thr, thread, buf);
-        block_th_set(block, src_group, v);
+        block_th_set(block, idx, v);
     }
 }
 
