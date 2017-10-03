@@ -3,6 +3,7 @@
 work_factor="$1"; shift 1
 max_memory_gb="$1"; shift 1
 max_parallel="$1"; shift 1
+min_lane_mem="$1"; shift 1
 samples="$1"; shift 1
 modes="$1"; shift 1
 kernels="$1"; shift 1
@@ -20,6 +21,10 @@ fi
 
 if [ -z "$max_parallel" ]; then
     max_parallel=1024
+fi
+
+if [ -z "$min_lane_mem" ]; then
+    min_lane_mem=1024
 fi
 
 if [ -z "$samples" ]; then
@@ -88,6 +93,8 @@ for mode_spec in $modes; do
                             batch_size=1
                         fi
                         
+                        min_m_cost=$(( $min_lane_mem * $lanes ))
+                        
                         for t_cost  in $(seq 0 2 16); do
                             if [ $t_cost -lt 1 ]; then
                                 t_cost=1
@@ -100,12 +107,16 @@ for mode_spec in $modes; do
                                 m_cost=$(($max_memory_gb * 1024 * 1024 / $batch_size))
                             fi
                             
+                            if [ $m_cost -lt $min_m_cost ]; then
+                                m_cost=$min_m_cost
+                            fi
+                            
                             if [ $m_cost -lt $(( 8 * $lanes )) ]; then
                                 m_cost=$(( 8 * $lanes ))
                             fi
                             
                             ret=1
-                            while [ $m_cost -ge $(( 8 * $lanes )) ]; do
+                            while [ $m_cost -ge $min_m_cost ]; do
                                 ns_per_hash=$(./argon2-gpu-bench \
                                     -t $type -v $version \
                                     $precompute_flag \
@@ -120,6 +131,25 @@ for mode_spec in $modes; do
                                 
                                 (( m_cost /= 2 ))
                             done
+                            
+                            if [ $ret -ne 0 ]; then
+                                m_cost=$min_m_cost
+                                while [ $batch_size -gt 0 ]; do
+                                    ns_per_hash=$(./argon2-gpu-bench \
+                                        -t $type -v $version \
+                                        $precompute_flag \
+                                        -m $mode -d $device -k $kernel \
+                                        -b $batch_size -s $samples \
+                                        -T $t_cost -M $m_cost -L $lanes \
+                                        -o ns-per-hash --output-mode mean)
+                                    ret=$?
+                                    if [ $ret -eq 0 ]; then
+                                        break
+                                    fi
+                                    
+                                    (( batch_size /= 2 ))
+                                done
+                            fi
                             
                             if [ $ret -ne 0 ]; then
                                 break
