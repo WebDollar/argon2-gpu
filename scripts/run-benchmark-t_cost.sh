@@ -3,7 +3,6 @@
 work_factor="$1"; shift 1
 max_memory_gb="$1"; shift 1
 max_parallel="$1"; shift 1
-min_m_cost="$1"; shift 1
 samples="$1"; shift 1
 modes="$1"; shift 1
 kernels="$1"; shift 1
@@ -21,10 +20,6 @@ fi
 
 if [ -z "$max_parallel" ]; then
     max_parallel=1024
-fi
-
-if [ -z "$min_m_cost" ]; then
-    min_m_cost=1024
 fi
 
 if [ -z "$samples" ]; then
@@ -105,16 +100,12 @@ for mode_spec in $modes; do
                                 m_cost=$(($max_memory_gb * 1024 * 1024 / $batch_size))
                             fi
                             
-                            if [ $m_cost -lt $min_m_cost ]; then
-                                m_cost=$min_m_cost
-                            fi
-                            
                             if [ $m_cost -lt $(( 8 * $lanes )) ]; then
                                 m_cost=$(( 8 * $lanes ))
                             fi
                             
                             ret=1
-                            while [ $m_cost -ge $min_m_cost ]; do
+                            while [ $m_cost -ge $(( 8 * $lanes )) ]; do
                                 ns_per_hash=$(./argon2-gpu-bench \
                                     -t $type -v $version \
                                     $precompute_flag \
