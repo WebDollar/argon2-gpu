@@ -95,7 +95,7 @@ struct block_th {
     ulong a, b, c, d;
 };
 
-ulong mask_from_bit(uint test, uint ref)
+ulong cmpeq_mask(uint test, uint ref)
 {
     uint x = (int)(((uint)1 << (31 - test)) << ref) >> 31;
     return u64_build(x, x);
@@ -104,19 +104,19 @@ ulong mask_from_bit(uint test, uint ref)
 ulong block_th_get(const struct block_th *b, uint idx)
 {
     ulong res = 0;
-    res |= mask_from_bit(idx, 0) & b->a;
-    res |= mask_from_bit(idx, 1) & b->b;
-    res |= mask_from_bit(idx, 2) & b->c;
-    res |= mask_from_bit(idx, 3) & b->d;
+    res ^= cmpeq_mask(idx, 0) & b->a;
+    res ^= cmpeq_mask(idx, 1) & b->b;
+    res ^= cmpeq_mask(idx, 2) & b->c;
+    res ^= cmpeq_mask(idx, 3) & b->d;
     return res;
 }
 
 void block_th_set(struct block_th *b, uint idx, ulong v)
 {
-    b->a ^= mask_from_bit(idx, 0) & (v ^ b->a);
-    b->b ^= mask_from_bit(idx, 1) & (v ^ b->b);
-    b->c ^= mask_from_bit(idx, 2) & (v ^ b->c);
-    b->d ^= mask_from_bit(idx, 3) & (v ^ b->d);
+    b->a ^= cmpeq_mask(idx, 0) & (v ^ b->a);
+    b->b ^= cmpeq_mask(idx, 1) & (v ^ b->b);
+    b->c ^= cmpeq_mask(idx, 2) & (v ^ b->c);
+    b->d ^= cmpeq_mask(idx, 3) & (v ^ b->d);
 }
 
 void move_block(struct block_th *dst, const struct block_th *src)
@@ -290,16 +290,14 @@ void shuffle_unshift2(struct block_th *block, uint thread,
 void transpose(struct block_th *block, uint thread,
                __local struct u64_shuffle_buf *buf)
 {
-    uint thread_group = (thread % 16) / 4;
-    uint step = thread_group % 2 == 0 ? 1 : QWORDS_PER_THREAD - 1;
+    uint thread_group = (thread & 0x0C) >> 2;
     for (uint i = 1; i < QWORDS_PER_THREAD; i++) {
-        uint idx = (thread_group + step * i) % QWORDS_PER_THREAD;
         uint src_group = thread_group ^ i;
-        uint thr = src_group * 4 + (thread / 16) * 16 + thread % 4;
+        uint thr = (src_group << 2) | (thread & 0x13);
 
-        ulong v = block_th_get(block, idx);
+        ulong v = block_th_get(block, src_group);
         v = u64_shuffle(v, thr, thread, buf);
-        block_th_set(block, idx, v);
+        block_th_set(block, src_group, v);
     }
 }
 

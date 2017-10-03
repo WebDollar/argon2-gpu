@@ -75,7 +75,7 @@ struct block_th {
     uint64_t a, b, c, d;
 };
 
-__device__ uint64_t mask_from_bit(uint32_t test, uint32_t ref)
+__device__ uint64_t cmpeq_mask(uint32_t test, uint32_t ref)
 {
     uint32_t x = (int32_t)((UINT32_C(1) << (31 - test)) << ref) >> 31;
     return u64_build(x, x);
@@ -84,19 +84,19 @@ __device__ uint64_t mask_from_bit(uint32_t test, uint32_t ref)
 __device__ uint64_t block_th_get(const struct block_th *b, uint32_t idx)
 {
     uint64_t res = 0;
-    res |= mask_from_bit(idx, 0) & b->a;
-    res |= mask_from_bit(idx, 1) & b->b;
-    res |= mask_from_bit(idx, 2) & b->c;
-    res |= mask_from_bit(idx, 3) & b->d;
+    res ^= cmpeq_mask(idx, 0) & b->a;
+    res ^= cmpeq_mask(idx, 1) & b->b;
+    res ^= cmpeq_mask(idx, 2) & b->c;
+    res ^= cmpeq_mask(idx, 3) & b->d;
     return res;
 }
 
 __device__ void block_th_set(struct block_th *b, uint32_t idx, uint64_t v)
 {
-    b->a ^= mask_from_bit(idx, 0) & (v ^ b->a);
-    b->b ^= mask_from_bit(idx, 1) & (v ^ b->b);
-    b->c ^= mask_from_bit(idx, 2) & (v ^ b->c);
-    b->d ^= mask_from_bit(idx, 3) & (v ^ b->d);
+    b->a ^= cmpeq_mask(idx, 0) & (v ^ b->a);
+    b->b ^= cmpeq_mask(idx, 1) & (v ^ b->b);
+    b->c ^= cmpeq_mask(idx, 2) & (v ^ b->c);
+    b->d ^= cmpeq_mask(idx, 3) & (v ^ b->d);
 }
 
 __device__ void move_block(struct block_th *dst, const struct block_th *src)
@@ -187,22 +187,17 @@ __device__ void apply_shuffle(struct block_th *block, uint32_t thread,
     }
 }
 
-template<class shuffle>
 __device__ void transpose(struct block_th *block, uint32_t thread,
                           struct u64_shuffle_buf *buf)
 {
-    uint32_t thread_group = (thread % 16) / 4;
-    uint32_t step = thread_group % 2 == 0 ? 1 : QWORDS_PER_THREAD - 1;
+    uint32_t thread_group = (thread & 0x0C) >> 2;
     for (uint32_t i = 1; i < QWORDS_PER_THREAD; i++) {
-        uint32_t idx = (thread_group + step * i) % QWORDS_PER_THREAD;
         uint32_t src_group = thread_group ^ i;
-        uint32_t thr = src_group * 4 + (thread / 16) * 16 + thread % 4;
+        uint32_t thr = (src_group << 2) | (thread & 0x13);
 
-        thr = shuffle::apply(thr, i);
-
-        uint64_t v = block_th_get(block, idx);
+        uint64_t v = block_th_get(block, src_group);
         v = u64_shuffle(v, thr, thread, buf);
-        block_th_set(block, idx, v);
+        block_th_set(block, src_group, v);
     }
 }
 
@@ -252,7 +247,7 @@ struct unshift2_shuffle {
 __device__ void shuffle_block(struct block_th *block, uint32_t thread,
                               struct u64_shuffle_buf *buf)
 {
-    transpose<identity_shuffle>(block, thread, buf);
+    transpose(block, thread, buf);
 
     g(block);
 
@@ -261,8 +256,7 @@ __device__ void shuffle_block(struct block_th *block, uint32_t thread,
     g(block);
 
     apply_shuffle<unshift1_shuffle>(block, thread, buf);
-    transpose<identity_shuffle>(block, thread, buf);
-    //transpose<unshift1_shuffle>(block, thread, buf);
+    transpose(block, thread, buf);
 
     g(block);
 
