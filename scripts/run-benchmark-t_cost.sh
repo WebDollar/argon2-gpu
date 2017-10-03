@@ -85,9 +85,8 @@ for mode_spec in $modes; do
                     fi
                     
                     for (( lanes = 1; lanes <= 32; lanes *= 2 )); do
-                        batch_size=$max_parallel
-                        if [ $batch_size -ge $lanes ]; then
-                            (( batch_size /= $lanes ))
+                        if [ $max_parallel -ge $lanes ]; then
+                            batch_size=$(( $max_parallel / $lanes ))
                         else
                             batch_size=1
                         fi
