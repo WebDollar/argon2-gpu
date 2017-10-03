@@ -51,6 +51,8 @@ if [ -z "$precomputes" ]; then
     precomputes='no yes'
 fi
 
+work_factor=$(( $work_factor * $max_parallel ))
+
 echo "mode,kernel,version,type,precompute,t_cost,m_cost,lanes,ns_per_hash,batch_size"
 for mode_spec in $modes; do
     case "$mode_spec" in
@@ -96,7 +98,7 @@ for mode_spec in $modes; do
                                 t_cost=1
                             fi
                             
-                            m_cost=$(( $work_factor / $t_cost ))
+                            m_cost=$(( $work_factor / ($t_cost * $batch_size) ))
                             
                             if [ $(( $batch_size * $m_cost )) \
                                     -gt $(($max_memory_gb * 1024 * 1024)) ]; then

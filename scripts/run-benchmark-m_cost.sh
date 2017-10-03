@@ -56,6 +56,8 @@ if [ -z "$precomputes" ]; then
     precomputes='no yes'
 fi
 
+work_factor=$(( $work_factor * $max_parallel ))
+
 echo "mode,kernel,version,type,precompute,t_cost,m_cost,lanes,ns_per_hash,batch_size"
 for mode_spec in $modes; do
     case "$mode_spec" in
@@ -97,15 +99,15 @@ for mode_spec in $modes; do
                         fi
                         
                         for (( m_cost = $((8 * $lanes)); ; m_cost *= 2 )); do
-                            t_cost=$(( $work_factor / $m_cost ))
-                            if [ $t_cost -lt $min_t_cost ]; then
-                                t_cost=$min_t_cost
-                            fi
-                            
                             ret=1
                             while [ $(( $batch_size * $lanes )) -ge $min_parallel ] \
                                     && [ $(( $batch_size * $m_cost )) \
                                         -le $(($max_memory_gb * 1024 * 1024)) ]; do
+                                t_cost=$(( $work_factor / ($m_cost * $batch_size) ))
+                                if [ $t_cost -lt $min_t_cost ]; then
+                                    t_cost=$min_t_cost
+                                fi
+                                
                                 ns_per_hash=$(./argon2-gpu-bench \
                                     -t $type -v $version \
                                     $precompute_flag \
