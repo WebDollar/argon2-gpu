@@ -15,8 +15,6 @@ save_graph <- function(name, plot) {
   ggsave(paste0(name, '.pdf'), plot, width = GRAPH_WIDTH_CM, height = GRAPH_HEIGHT_CM, scale = 2.3, units = 'cm')
 }
 
-args <- commandArgs(trailingOnly = TRUE)
-
 machines <- read.csv('machines.csv', row.names=NULL)
 
 machines$id <- paste0(machines$type, '-', machines$id)
