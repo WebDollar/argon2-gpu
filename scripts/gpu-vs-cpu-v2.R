@@ -77,7 +77,7 @@ make_plots_bps <- function(type) {
     save_graph(paste0(prefix, '-m_cost'),
                ggplot(data_b[data_b_f_t_cost,], aes(x=m_cost, y=blocks_per_second, colour=Name)) +
                  geom_line() +
-                 scale_x_log10() +
+                 scale_x_continuous(trans="log2", labels=trans_format("log2", math_format(2^.x))) +
                  scale_y_continuous(labels=comma) +
                  facet_grid(t_cost~lanes, labeller=label_both) +
                  xlab('m_cost (log scale)') + ylab('Blocks per second'))
@@ -110,7 +110,7 @@ make_plots_bpj <- function(type) {
     save_graph(paste0(prefix, '-m_cost'),
                ggplot(data_b[data_b_f_t_cost,], aes(x=m_cost, y=blocks_per_joule, colour=Name)) +
                  geom_line() +
-                 scale_x_log10() +
+                 scale_x_continuous(trans="log2", labels=trans_format("log2", math_format(2^.x))) +
                  scale_y_continuous(labels=comma) +
                  facet_grid(t_cost~lanes, labeller=label_both) +
                  xlab('m_cost (log scale)') + ylab('Blocks per joule'))

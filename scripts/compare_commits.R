@@ -52,7 +52,7 @@ make_plots_commits <- function(mode, kernel, type, precompute) {
     save_graph(paste0(prefix, '-m_cost'),
                ggplot(data_b[data_b_f_t_cost,], aes(x=m_cost, y=blocks_per_second, group=Commit, colour=Commit)) +
                  geom_line() +
-                 scale_x_log10() +
+                 scale_x_continuous(trans="log2", labels=trans_format("log2", math_format(2^.x))) +
                  scale_y_continuous(labels=comma) +
                  facet_grid(t_cost~lanes, labeller=label_both) +
                  xlab('m_cost (log scale)') + ylab('Blocks per second'))
@@ -84,7 +84,7 @@ make_plots_types <- function(commit, mode, kernel) {
     save_graph(paste0(prefix, '-m_cost'),
                ggplot(data_b[data_b_f_t_cost,], aes(x=m_cost, y=blocks_per_second, group=Variant, colour=Variant)) +
                  geom_line() +
-                 scale_x_log10() +
+                 scale_x_continuous(trans="log2", labels=trans_format("log2", math_format(2^.x))) +
                  scale_y_continuous(labels=comma) +
                  facet_grid(t_cost~lanes, labeller=label_both) +
                  xlab('m_cost (log scale)') + ylab('Blocks per second'))
@@ -118,7 +118,7 @@ make_plots_versions <-  function(commit, mode, kernel, type, precompute) {
     save_graph(paste0(prefix, '-m_cost'),
                ggplot(data_b[data_b_f_t_cost,], aes(x=m_cost, y=blocks_per_second, group=Version, colour=Version)) +
                  geom_line() +
-                 scale_x_log10() +
+                 scale_x_continuous(trans="log2", labels=trans_format("log2", math_format(2^.x))) +
                  scale_y_continuous(labels=comma) +
                  facet_grid(t_cost~lanes, labeller=label_both) +
                  xlab('m_cost (log scale)') + ylab('Blocks per second'))
@@ -152,7 +152,7 @@ make_plots_kernels <-  function(commit, mode, version, type, precompute) {
     save_graph(paste0(prefix, '-m_cost'),
                ggplot(data_b[data_b_f_t_cost,], aes(x=m_cost, y=blocks_per_second, group=Kernel.mode, colour=Kernel.mode)) +
                  geom_line() +
-                 scale_x_log10() +
+                 scale_x_continuous(trans="log2", labels=trans_format("log2", math_format(2^.x))) +
                  scale_y_continuous(labels=comma) +
                  facet_grid(t_cost~lanes, labeller=label_both) +
                  xlab('m_cost (log scale)') + ylab('Blocks per second'))
@@ -186,7 +186,7 @@ make_plots_modes <-  function(commit, kernel, version, type, precompute) {
     save_graph(paste0(prefix, '-m_cost'),
                ggplot(data_b[data_b_f_t_cost,], aes(x=m_cost, y=blocks_per_second, group=Mode, colour=Mode)) +
                  geom_line() +
-                 scale_x_log10() +
+                 scale_x_continuous(trans="log2", labels=trans_format("log2", math_format(2^.x))) +
                  scale_y_continuous(labels=comma) +
                  facet_grid(t_cost~lanes, labeller=label_both) +
                  xlab('m_cost (log scale)') + ylab('Blocks per second'))
