@@ -19,6 +19,8 @@
 
 using namespace argon2;
 
+constexpr std::size_t BATCH_SIZE = 8;
+
 template<class Device, class GlobalContext, class ProgramContext,
          class ProcessingUnit>
 std::size_t runParamsVsRef(const GlobalContext &global, const Device &device,
@@ -58,49 +60,61 @@ std::size_t runParamsVsRef(const GlobalContext &global, const Device &device,
                           << " p=" << params->getLanes();
                 std::cout << "... ";
 
+                auto outLen = params->getOutputLength();
                 auto bufferRef = std::unique_ptr<std::uint8_t[]>(
-                            new std::uint8_t[params->getOutputLength()]);
+                            new std::uint8_t[BATCH_SIZE * outLen]);
 
-                argon2_context ctx;
+                for (std::size_t i = 0; i < BATCH_SIZE; i++) {
+                    argon2_context ctx;
+                    std::string input = "password" + std::to_string(i);
 
-                ctx.out = bufferRef.get();
-                ctx.outlen = params->getOutputLength();
-                ctx.pwd = (uint8_t *)"password";
-                ctx.pwdlen = 8;
+                    ctx.out = bufferRef.get() + i * outLen;
+                    ctx.outlen = outLen;
+                    ctx.pwd = (uint8_t *)input.data();
+                    ctx.pwdlen = input.size();
 
-                ctx.salt = (uint8_t *)params->getSalt();
-                ctx.saltlen = params->getSaltLength();
-                ctx.secret = (uint8_t *)params->getSecret();
-                ctx.secretlen = params->getSecretLength();
-                ctx.ad = (uint8_t *)params->getAssocData();
-                ctx.adlen = params->getAssocDataLength();
+                    ctx.salt = (uint8_t *)params->getSalt();
+                    ctx.saltlen = params->getSaltLength();
+                    ctx.secret = (uint8_t *)params->getSecret();
+                    ctx.secretlen = params->getSecretLength();
+                    ctx.ad = (uint8_t *)params->getAssocData();
+                    ctx.adlen = params->getAssocDataLength();
 
-                ctx.t_cost = params->getTimeCost();
-                ctx.m_cost = params->getMemoryCost();
-                ctx.threads = ctx.lanes = params->getLanes();
+                    ctx.t_cost = params->getTimeCost();
+                    ctx.m_cost = params->getMemoryCost();
+                    ctx.threads = ctx.lanes = params->getLanes();
 
-                ctx.version = version;
+                    ctx.version = version;
 
-                ctx.allocate_cbk = NULL;
-                ctx.free_cbk = NULL;
-                ctx.flags = 0;
+                    ctx.allocate_cbk = NULL;
+                    ctx.free_cbk = NULL;
+                    ctx.flags = 0;
 
-                int err = argon2_ctx(&ctx, (argon2_type)type);
-                if (err) {
-                    throw std::runtime_error(argon2_error_message(err));
+                    int err = argon2_ctx(&ctx, (argon2_type)type);
+                    if (err) {
+                        throw std::runtime_error(argon2_error_message(err));
+                    }
                 }
 
                 auto buffer = std::unique_ptr<std::uint8_t[]>(
-                            new std::uint8_t[params->getOutputLength()]);
-                ProcessingUnit pu(&progCtx, params, &device, 1, bySegment,
-                                  precompute);
-                pu.setPassword(0, "password", 8);
+                            new std::uint8_t[outLen]);
+                ProcessingUnit pu(&progCtx, params, &device, BATCH_SIZE,
+                                  bySegment, precompute);
+                for (std::size_t i = 0; i < BATCH_SIZE; i++) {
+                    std::string input = "password" + std::to_string(i);
+                    pu.setPassword(i, input.data(), input.size());
+                }
                 pu.beginProcessing();
                 pu.endProcessing();
-                pu.getHash(0, buffer.get());
 
-                bool res = std::memcmp(bufferRef.get(), buffer.get(),
-                                       params->getOutputLength()) == 0;
+                bool res = true;
+                for (std::size_t i = 0; i < BATCH_SIZE; i++) {
+                    pu.getHash(i, buffer.get());
+
+                    res = res && std::memcmp(bufferRef.get() + i * outLen,
+                                             buffer.get(), outLen) == 0;
+                }
+
                 if (!res) {
                     ++failures;
                     std::cout << "FAIL" << std::endl;
