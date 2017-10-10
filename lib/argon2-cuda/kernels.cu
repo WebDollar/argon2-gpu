@@ -470,7 +470,8 @@ __global__ void argon2_kernel_segment_precompute(
         uint32_t pass, uint32_t slice)
 {
     extern __shared__ struct u64_shuffle_buf shuffle_bufs[];
-    struct u64_shuffle_buf *shuffle_buf = &shuffle_bufs[threadIdx.y];
+    struct u64_shuffle_buf *shuffle_buf =
+            &shuffle_bufs[blockDim.y * threadIdx.z + threadIdx.y];
 
     uint32_t job_id = blockIdx.z * blockDim.z + threadIdx.z;
     uint32_t lane   = blockIdx.y * blockDim.y + threadIdx.y;
@@ -528,7 +529,8 @@ __global__ void argon2_kernel_oneshot_precompute(
         uint32_t lanes, uint32_t segment_blocks)
 {
     extern __shared__ struct u64_shuffle_buf shuffle_bufs[];
-    struct u64_shuffle_buf *shuffle_buf = &shuffle_bufs[threadIdx.y];
+    struct u64_shuffle_buf *shuffle_buf =
+            &shuffle_bufs[lanes * threadIdx.z + threadIdx.y];
 
     uint32_t job_id = blockIdx.z * blockDim.z + threadIdx.z;
     uint32_t lane   = threadIdx.y;
@@ -623,7 +625,8 @@ __global__ void argon2_kernel_segment(
         uint32_t segment_blocks, uint32_t pass, uint32_t slice)
 {
     extern __shared__ struct u64_shuffle_buf shuffle_bufs[];
-    struct u64_shuffle_buf *shuffle_buf = &shuffle_bufs[threadIdx.y];
+    struct u64_shuffle_buf *shuffle_buf =
+            &shuffle_bufs[blockDim.y * threadIdx.z + threadIdx.y];
 
     uint32_t job_id = blockIdx.z * blockDim.z + threadIdx.z;
     uint32_t lane   = blockIdx.y * blockDim.y + threadIdx.y;
@@ -706,7 +709,8 @@ __global__ void argon2_kernel_oneshot(
         uint32_t segment_blocks)
 {
     extern __shared__ struct u64_shuffle_buf shuffle_bufs[];
-    struct u64_shuffle_buf *shuffle_buf = &shuffle_bufs[threadIdx.y];
+    struct u64_shuffle_buf *shuffle_buf =
+            &shuffle_bufs[lanes * threadIdx.z + threadIdx.y];
 
     uint32_t job_id = blockIdx.z * blockDim.z + threadIdx.z;
     uint32_t lane   = threadIdx.y;

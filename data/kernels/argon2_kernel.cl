@@ -540,7 +540,8 @@ __kernel void argon2_kernel_segment_precompute(
 {
     uint job_id = get_global_id(1);
     uint lane   = get_global_id(0) / THREADS_PER_LANE;
-    uint warp   = get_local_id(0) / THREADS_PER_LANE;
+    uint warp   = (get_local_id(1) * get_local_size(0) + get_local_id(0))
+            / THREADS_PER_LANE;
     uint thread = get_local_id(0) % THREADS_PER_LANE;
 
     __local struct u64_shuffle_buf *shuffle_buf = &shuffle_bufs[warp];
@@ -598,7 +599,7 @@ __kernel void argon2_kernel_oneshot_precompute(
 {
     uint job_id = get_global_id(1);
     uint lane   = get_global_id(0) / THREADS_PER_LANE;
-    uint warp   = get_local_id(0) / THREADS_PER_LANE;
+    uint warp   = get_local_id(1) * lanes + get_local_id(0) / THREADS_PER_LANE;
     uint thread = get_local_id(0) % THREADS_PER_LANE;
 
     __local struct u64_shuffle_buf *shuffle_buf = &shuffle_bufs[warp];
@@ -699,7 +700,8 @@ __kernel void argon2_kernel_segment(
 {
     uint job_id = get_global_id(1);
     uint lane   = get_global_id(0) / THREADS_PER_LANE;
-    uint warp   = get_local_id(0) / THREADS_PER_LANE;
+    uint warp   = (get_local_id(1) * get_local_size(0) + get_local_id(0))
+            / THREADS_PER_LANE;
     uint thread = get_local_id(0) % THREADS_PER_LANE;
 
     __local struct u64_shuffle_buf *shuffle_buf = &shuffle_bufs[warp];
@@ -781,7 +783,7 @@ __kernel void argon2_kernel_oneshot(
 {
     uint job_id = get_global_id(1);
     uint lane   = get_global_id(0) / THREADS_PER_LANE;
-    uint warp   = get_local_id(0) / THREADS_PER_LANE;
+    uint warp   = get_local_id(1) * lanes + get_local_id(0) / THREADS_PER_LANE;
     uint thread = get_local_id(0) % THREADS_PER_LANE;
 
     __local struct u64_shuffle_buf *shuffle_buf = &shuffle_bufs[warp];
