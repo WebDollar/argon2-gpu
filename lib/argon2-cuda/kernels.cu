@@ -799,15 +799,15 @@ __global__ void argon2_kernel_oneshot(
 
 KernelRunner::KernelRunner(uint32_t type, uint32_t version, uint32_t passes,
                            uint32_t lanes, uint32_t segmentBlocks,
-                           uint32_t batchSize, bool bySegment, bool precompute)
+                           size_t batchSize, bool bySegment, bool precompute)
     : type(type), version(version), passes(passes), lanes(lanes),
       segmentBlocks(segmentBlocks), batchSize(batchSize), bySegment(bySegment),
       precompute(precompute), stream(nullptr), memory(nullptr),
       refs(nullptr), start(nullptr), end(nullptr)
 {
     // FIXME: check overflow:
-    size_t memorySize = static_cast<size_t>(lanes) * segmentBlocks
-            * ARGON2_SYNC_POINTS * ARGON2_BLOCK_SIZE * batchSize;
+    size_t memorySize = batchSize * lanes * segmentBlocks
+            * ARGON2_SYNC_POINTS * ARGON2_BLOCK_SIZE;
 
 #ifndef NDEBUG
         std::cerr << "[INFO] Allocating " << memorySize << " bytes for memory..."
@@ -886,7 +886,7 @@ KernelRunner::~KernelRunner()
     }
 }
 
-void KernelRunner::writeInputMemory(uint32_t jobId, const void *buffer)
+void KernelRunner::writeInputMemory(size_t jobId, const void *buffer)
 {
     std::size_t memorySize = static_cast<size_t>(lanes) * segmentBlocks
             * ARGON2_SYNC_POINTS * ARGON2_BLOCK_SIZE;
@@ -898,7 +898,7 @@ void KernelRunner::writeInputMemory(uint32_t jobId, const void *buffer)
     CudaException::check(cudaStreamSynchronize(stream));
 }
 
-void KernelRunner::readOutputMemory(uint32_t jobId, void *buffer)
+void KernelRunner::readOutputMemory(size_t jobId, void *buffer)
 {
     std::size_t memorySize = static_cast<size_t>(lanes) * segmentBlocks
             * ARGON2_SYNC_POINTS * ARGON2_BLOCK_SIZE;

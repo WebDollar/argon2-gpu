@@ -36,16 +36,16 @@ public:
     std::uint32_t getMinJobsPerBlock() const { return 1; }
     std::uint32_t getMaxJobsPerBlock() const { return batchSize; }
 
-    std::uint32_t getBatchSize() const { return batchSize; }
+    std::size_t getBatchSize() const { return batchSize; }
 
     KernelRunner(const ProgramContext *programContext,
                  const Argon2Params *params, const Device *device,
-                 std::uint32_t batchSize, bool bySegment, bool precompute);
+                 std::size_t batchSize, bool bySegment, bool precompute);
 
-    void *mapInputMemory(std::uint32_t jobId);
+    void *mapInputMemory(std::size_t jobId);
     void unmapInputMemory(void *memory);
 
-    void *mapOutputMemory(std::uint32_t jobId);
+    void *mapOutputMemory(std::size_t jobId);
     void unmapOutputMemory(void *memory);
 
     void run(std::uint32_t lanesPerBlock, std::uint32_t jobsPerBlock);

@@ -17,10 +17,10 @@ enum {
 
 KernelRunner::KernelRunner(const ProgramContext *programContext,
                            const Argon2Params *params, const Device *device,
-                           std::uint32_t batchSize, bool bySegment, bool precompute)
+                           std::size_t batchSize, bool bySegment, bool precompute)
     : programContext(programContext), params(params), batchSize(batchSize),
       bySegment(bySegment), precompute(precompute),
-      memorySize(params->getMemorySize() * static_cast<std::size_t>(batchSize))
+      memorySize(params->getMemorySize() * batchSize)
 {
     auto context = programContext->getContext();
     std::uint32_t passes = params->getTimeCost();
@@ -110,7 +110,7 @@ void KernelRunner::precomputeRefs()
     queue.finish();
 }
 
-void *KernelRunner::mapInputMemory(std::uint32_t jobId)
+void *KernelRunner::mapInputMemory(std::size_t jobId)
 {
     std::size_t memorySize = params->getMemorySize();
     std::size_t mappedSize = params->getLanes() * 2 * ARGON2_BLOCK_SIZE;
@@ -123,7 +123,7 @@ void KernelRunner::unmapInputMemory(void *memory)
     queue.enqueueUnmapMemObject(memoryBuffer, memory);
 }
 
-void *KernelRunner::mapOutputMemory(std::uint32_t jobId)
+void *KernelRunner::mapOutputMemory(std::size_t jobId)
 {
     std::size_t memorySize = params->getMemorySize();
     std::size_t mappedSize = static_cast<std::size_t>(params->getLanes())
