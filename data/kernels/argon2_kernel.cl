@@ -640,7 +640,7 @@ __kernel void argon2_kernel_oneshot_precompute(
                 mem_curr += lanes;
             }
 
-            barrier(CLK_LOCAL_MEM_FENCE);
+            barrier(CLK_GLOBAL_MEM_FENCE);
         }
 
         mem_curr = mem_lane;
@@ -845,7 +845,7 @@ __kernel void argon2_kernel_oneshot(
                 mem_curr += lanes;
             }
 
-            barrier(CLK_LOCAL_MEM_FENCE);
+            barrier(CLK_GLOBAL_MEM_FENCE);
 
 #if ARGON2_TYPE == ARGON2_I || ARGON2_TYPE == ARGON2_ID
             if (thread == 2) {
