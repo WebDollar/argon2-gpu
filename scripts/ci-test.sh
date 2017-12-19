@@ -5,7 +5,10 @@ fi
 cd pocl/build || exit 1
 make install || exit 1
 mkdir -p /etc/OpenCL/vendors || exit 1
-cp /usr/local/etc/OpenCL/vendors/pocl.icd /etc/OpenCL/vendors/pocl.icd || exit 1
+if [ -f /usr/local/etc/OpenCL/vendors/pocl.icd ]; then
+    cp /usr/local/etc/OpenCL/vendors/pocl.icd \
+        /etc/OpenCL/vendors/pocl.icd || exit 1
+fi
 cd ../.. || exit 1
 
 cd build/$COMPILER-$CUDA || exit 1
