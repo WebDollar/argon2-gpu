@@ -55,6 +55,10 @@ update-pocl:
     stage: build
     script:
         - . scripts/ci-update-pocl.sh
+    cache:
+        key: pocl-build
+        paths:
+            - pocl/
     artifacts:
         paths:
             - pocl/
