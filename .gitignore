@@ -36,3 +36,6 @@ Makefile
 
 # Qt Creator
 *.user
+
+.idea/
+ext/
