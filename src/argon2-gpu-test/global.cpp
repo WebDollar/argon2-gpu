@@ -133,7 +133,7 @@ int readData(const char * filename){
                 ok = 0;
                 break;
             }
-        if (ok == 0){
+        if (ok == 1){
             fclose(fin);
             return 0;
         }
