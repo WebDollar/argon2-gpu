@@ -1,4 +1,4 @@
-Tutorial for Node-WebDollar
+# Tutorial for Node-WebDollar to mine with GPU (unfriendly)
 
 ## Install cmake new version
 
