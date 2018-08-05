@@ -34,7 +34,7 @@ sudo ln -s /usr/lib/x86_64-linux-gnu/libOpenCL.so.1 /usr/lib/libOpenCL.so
 ## Final compile
 
 1. `make`
-2. copy the `argon2-gpu-test` and `data` folder to Node-WebDollar**/dist_bundle/GPU/argon2-gpu-test**
+2. copy the `argon2-gpu-test` and `data` folder to Node-WebDollar **/dist_bundle/GPU/argon2-gpu-test**
 
 
 ### Tutorial how to use for manual tests
