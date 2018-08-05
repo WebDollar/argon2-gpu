@@ -100,7 +100,7 @@ int readData(const char * filename){
     //printf("hash:   \n");
     for (i = 0; i < _length; i++) {
 
-        fscanf(fin, "%hhu", &pwd[i] );
+        fscanf(fin, "%hhu", &_pwd[i] );
 
         if (feof(fin)) {
             fclose(fin);
@@ -112,7 +112,7 @@ int readData(const char * filename){
     //printf("DIFFICULTY:   \n");
     for (i = 0; i < 32; i++) {
 
-        fscanf(fin, "%hhu", &difficulty[i]);
+        fscanf(fin, "%hhu", &_difficulty[i]);
 
         if (feof(fin)) {
             fclose(fin);
