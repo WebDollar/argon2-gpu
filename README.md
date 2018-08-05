@@ -2,15 +2,36 @@ Tutorial for Node-WebDollar
 
 ## Install cmake new version
 
+```
     cmake
     https://askubuntu.com/questions/829310/how-to-upgrade-cmake-in-ubuntu
+```
 
 ## Install opencl headers
 
+```
 apt-get install opencl-headers
 sudo apt-get install ocl-icd-libopencl1
 
 sudo ln -s /usr/lib/x86_64-linux-gnu/libOpenCL.so.1 /usr/lib/libOpenCL.so
+
+```
+
+
+
+
+CUDA Installation:
+
+1.
+    https://gist.github.com/zhanwenchen/e520767a409325d9961072f666815bb8
+
+2. There is a mistake in the tutorial
+
+    sudo nano /etc/environment
+    Be sure you have at the end of the file **:/usr/local/cuda/bin** (it is important to have `:` at the beginning something exists before)
+
+
+
 
 
 ### Tutorial how to use for manual tests
@@ -32,19 +53,6 @@ ns_per_hash=$(./argon2-gpu-bench \
 
 ./argon2-gpu-test -m opencl -d 0
 
-
-
-
-
-Instalare CUDA:
-
-2.
-https://gist.github.com/zhanwenchen/e520767a409325d9961072f666815bb8
-
-
-sudo nano /etc/environment
-
-pui la sfarsit :/usr/local/cuda/bin (inclusiv : la inceput)
 
 
 
