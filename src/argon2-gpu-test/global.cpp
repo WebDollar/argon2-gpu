@@ -121,8 +121,8 @@ int readData(const char * filename){
         //std::cout << a << " ";
     }
 
-    //check if it identical
-    if (_start == g_startPrev && _length == g_length) {
+    //check if it is identical
+    if (_start == startPrev && _length == length) {
         for (i=0; i < _length; i++)
             if (pwd[i] != _pwd[i]){
                 ok = 0;
