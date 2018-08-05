@@ -1,3 +1,53 @@
+Tutorial for Node-WebDollar
+
+## Install cmake new version
+
+    cmake
+    https://askubuntu.com/questions/829310/how-to-upgrade-cmake-in-ubuntu
+
+## Install opencl headers
+
+apt-get install opencl-headers
+sudo apt-get install ocl-icd-libopencl1
+
+sudo ln -s /usr/lib/x86_64-linux-gnu/libOpenCL.so.1 /usr/lib/libOpenCL.so
+
+
+### Tutorial how to use for manual tests
+
+ns_per_hash=$(./argon2-gpu-bench \
+                                    -t $type -v $version \
+                                    $precompute_flag \
+                                    -m $mode -d $device -k $kernel \
+                                    -b $batch_size -s $samples \
+                                    -T $t_cost -M $m_cost -L $lanes \
+                                    -o ns-per-hash --output-mode mean)
+                                ret=$?
+
+./argon2-gpu-bench -t d -v 1.3 -m cuda -d 0 -k by-segment -b 50 -s 5 -T 2 -M 256 -L 2 -o ns-per-hash --output-mode mean
+
+
+./argon2 Satoshi_is_Finney -d -t 2 -m 8 -p 2 -e -l 32
+
+
+./argon2-gpu-test -m opencl -d 0
+
+
+
+
+
+Instalare CUDA:
+
+2.
+https://gist.github.com/zhanwenchen/e520767a409325d9961072f666815bb8
+
+
+sudo nano /etc/environment
+
+pui la sfarsit :/usr/local/cuda/bin (inclusiv : la inceput)
+
+
+
 # argon2-gpu [![build status](https://gitlab.com/omos/argon2-gpu/badges/master/build.svg)](https://gitlab.com/omos/argon2-gpu/commits/master)
 
 A proof-of-concept GPU password cracker for Argon2 hashes.
