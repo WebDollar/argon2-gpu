@@ -55,7 +55,7 @@ int initializeSystem ( const char *progname, const char *name, std::size_t devic
     while ( 1 ){
 
 
-        usleep(10);
+        usleep(50);
 
         answer = readData( filename.c_str() );
 
