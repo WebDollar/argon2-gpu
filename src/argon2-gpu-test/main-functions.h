@@ -55,7 +55,7 @@ int initializeSystem ( const char *progname, const char *name, std::size_t devic
     while ( 1 ){
 
 
-        usleep(100);
+        usleep(10);
 
         answer = readData( filename.c_str() );
 
@@ -166,7 +166,7 @@ int runRealTime(const char *progname, const char *name, std::size_t deviceIndex,
 
     while ( 1  ){
 
-        usleep (100);
+        usleep (10);
 
         scanf ("%d", &length);
         scanf ("%s", &pwd);
