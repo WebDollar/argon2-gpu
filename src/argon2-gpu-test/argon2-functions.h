@@ -46,7 +46,7 @@ std::size_t runParamsVsRef(ProcessingUnit & pu, const GlobalContext &global, con
 
 	int index;
 
-	for (int i = 0; i < batch; ++ i) {
+	for (unsigned long i = 0; i < batch; ++ i) {
 
 		index = i + start;
 
@@ -58,14 +58,14 @@ std::size_t runParamsVsRef(ProcessingUnit & pu, const GlobalContext &global, con
 
 		pu.setPassword (i, data[ i ].data (), pwdLen + 4);
 
-		if (g_debug) {
-			for (std::size_t q = 0; q < pwdLen + 4; q ++) {
-				d2base ((int) data[ i ][ q ], 16);
-				std::cout << " ";
-			}
-
-			std::cout << "\n";
-		}
+//		if (g_debug) {
+//			for (std::size_t q = 0; q < pwdLen + 4; q ++) {
+//				d2base ((int) data[ i ][ q ], 16);
+//				std::cout << " ";
+//			}
+//
+//			std::cout << "\n";
+//		}
 
 
 	}
@@ -106,7 +106,7 @@ std::size_t runParamsVsRef(ProcessingUnit & pu, const GlobalContext &global, con
 		}
 
 
-		if (change == true) {
+		if (change) {
 
 			for (auto q = 0; q < 32; q ++)
 				bestHash[ q ] = x[ q ];
@@ -138,8 +138,10 @@ std::size_t runParamsVsRef(ProcessingUnit & pu, const GlobalContext &global, con
 
 	}
 
-	if (failures)
-		std::cout << "  ERROR " << std::endl;
+    if (g_debug) {
+        if (failures)
+            std::cout << "  ERROR " << std::endl;
+    }
 
 	return false;
 }

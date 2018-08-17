@@ -50,6 +50,7 @@ ns_per_hash=$(./argon2-gpu-bench \
                                     -o ns-per-hash --output-mode mean)
                                 ret=$?
 
+
 ./argon2-gpu-bench -t d -v 1.3 -m cuda -d 0 -k by-segment -b 50 -s 5 -T 2 -M 256 -L 2 -o ns-per-hash --output-mode mean
 
 
